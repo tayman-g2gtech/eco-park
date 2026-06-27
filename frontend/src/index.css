@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 140 15% 98%;
+    --foreground: 140 25% 10%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 140 25% 10%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 25% 10%;
+ 
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 140 10% 92%;
+    --secondary-foreground: 140 20% 15%;
+ 
+    --muted: 140 5% 94%;
+    --muted-foreground: 140 10% 45%;
+ 
+    --accent: 142 45% 92%;
+    --accent-foreground: 142 76% 25%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 140 10% 90%;
+    --input: 140 10% 90%;
+    --ring: 142 76% 36%;
+ 
+    --radius: 0.75rem;
+  }
+ 
+  .dark {
+    --background: 140 20% 8%;
+    --foreground: 140 10% 93%;
+ 
+    --card: 140 20% 10%;
+    --card-foreground: 140 10% 95%;
+ 
+    --popover: 140 20% 9%;
+    --popover-foreground: 140 10% 95%;
+ 
+    --primary: 142 70% 45%;
+    --primary-foreground: 140 10% 5%;
+ 
+    --secondary: 140 15% 15%;
+    --secondary-foreground: 140 10% 88%;
+ 
+    --muted: 140 15% 14%;
+    --muted-foreground: 140 10% 65%;
+ 
+    --accent: 142 50% 18%;
+    --accent-foreground: 142 70% 85%;
+ 
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 140 15% 16%;
+    --input: 140 15% 16%;
+    --ring: 142 70% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30 transition-colors;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass {
+  background: rgba(20, 24, 21, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Print Utilities */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+
+  .non-printable,
+  aside,
+  header,
+  button,
+  input {
+    display: none !important;
+  }
+
+  /* Reset main layout offsets */
+  body,
+  html {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .pl-64,
+  .pl-20,
+  div.flex-1,
+  main,
+  .p-8,
+  .space-y-8,
+  .p-6,
+  .p-5 {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+  }
+
+  /* Card styling reset for print */
+  .shadow-sm,
+  .border,
+  .bg-white,
+  .dark\:bg-slate-900 {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* Table borders and typography */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, 
+  td {
+    border-bottom: 1px solid #cbd5e1 !important;
+    color: black !important;
+    padding: 10px 6px !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Color adjust for printable colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

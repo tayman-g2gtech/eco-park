@@ -1,0 +1,19 @@
+# ─── Racine du projet ────────────────────────────────────────────────────────
+node_modules/
+*.log
+
+# ─── Environnements (JAMAIS committer les vrais secrets) ─────────────────────
+**/.env
+!**/.env.example
+!**/.env.production
+
+# ─── Build artifacts ──────────────────────────────────────────────────────────
+**/dist/
+**/dist-ssr/
+
+# ─── OS / Éditeurs ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea

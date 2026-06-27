@@ -1,0 +1,29 @@
+{
+  "short_name": "Eco-Park",
+  "name": "Eco-Park Management System",
+  "description": "Plateforme interne de pilotage pour le café-restaurant Eco-Park",
+  "icons": [
+    {
+      "src": "/logoo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/logoo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.ico",
+      "type": "image/x-icon",
+      "sizes": "256x256 128x128 64x64 48x48 32x32 16x16"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#059669",
+  "display": "standalone",
+  "orientation": "any"
+}
