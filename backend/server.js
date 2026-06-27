@@ -26,19 +26,22 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Middleware — CORS dynamique (localhost en dev, Netlify en prod)
-const corsOptions = {
-  origin: process.env.CLIENT_ORIGIN
-    ? [process.env.CLIENT_ORIGIN.trim(), 'http://localhost:5173']
-    : ['http://localhost:5173'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
+// ── CORS : headers manuels (compatible Railway + Netlify) ──────────────────
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
-// Gérer les requêtes preflight OPTIONS (critiques pour le navigateur)
-app.options('*', cors(corsOptions));
-app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', CLIENT_ORIGIN);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+
+  // Répondre immédiatement aux requêtes preflight OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 app.use(express.json());
 
 
