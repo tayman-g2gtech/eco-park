@@ -26,11 +26,14 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// ── CORS hardcodé (Netlify prod + localhost dev) ───────────────────────────
+// ── CORS dynamique (compatible Railway + Netlify) ──────────────────────────
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowed = ['https://eco-park.netlify.app', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
+  const allowedOrigins = process.env.CLIENT_ORIGIN
+    ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim())
+    : ['http://localhost:5173'];
+
+  if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
