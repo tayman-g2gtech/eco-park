@@ -27,24 +27,20 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware — CORS dynamique (localhost en dev, Netlify en prod)
-const allowedOrigins = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim())
-  : ['http://localhost:5173'];
+const corsOptions = {
+  origin: process.env.CLIENT_ORIGIN
+    ? [process.env.CLIENT_ORIGIN.trim(), 'http://localhost:5173']
+    : ['http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Autoriser les requêtes sans origin (Postman, curl, health checks)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS bloqué pour l'origine : ${origin}`));
-      }
-    },
-    credentials: true,
-  })
-);
+// Gérer les requêtes preflight OPTIONS (critiques pour le navigateur)
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json());
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
