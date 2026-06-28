@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   Plus,
   Coins,
-  Loader2
+  Loader2,
+  FileDown
 } from 'lucide-react'
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -20,6 +21,7 @@ import client from '@/api/client'
 import { formatCurrency } from '@/lib/utils'
 import MonthCarousel from '@/components/shared/MonthCarousel'
 import { toast } from 'sonner'
+import { exportDashboardExcel } from '@/utils/exportDashboardExcel'
 
 // ─── Guide d'Opération Quotidienne (FR / AR) ────────────────────────────────
 const GUIDE_CONTENT = {
@@ -172,6 +174,16 @@ export default function Dashboard() {
     fetchData()
   }, [selectedMonth])
 
+  const handleExportExcel = () => {
+    try {
+      exportDashboardExcel(kpis, trendData)
+      toast.success('Rapport financier exporté avec succès !')
+    } catch (err) {
+      console.error('Error exporting dashboard excel:', err)
+      toast.error(err.message || 'Erreur lors de l\'export du rapport')
+    }
+  }
+
   const handleAddCA = async (e) => {
     e.preventDefault()
     if (!caAmount || Number(caAmount) <= 0) {
@@ -221,7 +233,16 @@ export default function Dashboard() {
             Indicateurs clés et performance financière d'Eco-Park.
           </p>
         </div>
-        <MonthCarousel value={selectedMonth} onChange={setSelectedMonth} />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-semibold shadow-sm"
+          >
+            <FileDown size={16} />
+            Exporter Rapport
+          </button>
+          <MonthCarousel value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* KPI Cards Grid */}
