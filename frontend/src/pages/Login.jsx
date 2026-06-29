@@ -101,13 +101,6 @@ export default function Login() {
             )}
           </button>
         </form>
-
-        {/* Demo Credentials Notice */}
-        <div className="mt-8 pt-6 border-t border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-500 leading-normal">
-            Compte de démonstration : <strong className="text-emerald-500/80">admin@ecopark.ma</strong> / <strong className="text-emerald-500/80">EcoPark2025!</strong>
-          </p>
-        </div>
       </div>
     </div>
   )
