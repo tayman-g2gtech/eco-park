@@ -4,7 +4,11 @@ const SupplierSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   category: {
     type: String,
-    enum: ['Viandes', 'Épicerie', 'Laitiers', 'Boulangerie', 'Fruits & Légumes', 'Boissons', 'Autre'],
+    enum: [
+      'Viandes', 'Épicerie', 'Laitiers', 'Boulangerie', 'Fruits & Légumes', 'Boissons',
+      'Café & Thé', 'Poissons & Fruits de Mer', 'Sirops & Toppings', 'Emballages & Consommables',
+      'Produits d\'entretien', 'Autre'
+    ],
     default: 'Autre'
   },
   phone: { type: String },

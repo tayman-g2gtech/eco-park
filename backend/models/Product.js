@@ -2,17 +2,7 @@ import mongoose from 'mongoose';
 
 const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  category: {
-    type: String,
-    required: true,
-    enum: [
-      'Viande', 'Charcuterie', 'Pain', 'Fromage-Lait-Beurre',
-      'Épicerie', 'Légumes', 'Fruits', 'Boisson', 'Sirop',
-      'Chocolaterie', 'Café-Thé', 'Fruits Secs', 'Eau',
-      'Topping', 'Crème', 'Arôme', 'Farine', 'Nouveautés',
-      'Poudre', 'Poisson', 'Autre'
-    ]
-  },
+  category: { type: String, required: true, trim: true },
   pole: {
     type: String,
     required: true,

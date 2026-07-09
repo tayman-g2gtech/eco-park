@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const StockMovementSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   date: { type: String, required: true }, // Format 'YYYY-MM-DD'
-  pole: { type: String, required: true, enum: ['PDJ', 'Bar', 'Creperie'] },
+  pole: { type: String, required: true, enum: ['PDJ', 'Bar', 'Creperie', 'All'] },
   yesterdayStock: { type: Number, default: 0 },
   addedQuantity: { type: Number, default: 0 },
   consumedQuantity: { type: Number, default: 0 },

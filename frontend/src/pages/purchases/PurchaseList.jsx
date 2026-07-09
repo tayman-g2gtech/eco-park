@@ -10,7 +10,8 @@ import {
   Calendar,
   Layers,
   FileText,
-  FileDown
+  FileDown,
+  Search
 } from 'lucide-react'
 import client from '@/api/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -55,6 +56,7 @@ export default function PurchaseList() {
   })
   const [submittingSupplier, setSubmittingSupplier] = useState(false)
   const [editingSupplierId, setEditingSupplierId] = useState(null)
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
 
   // Fetch Purchases
   const fetchPurchases = async () => {
@@ -273,6 +275,16 @@ export default function PurchaseList() {
       return id === selectedSupplierFilter
     })
   }, [purchases, selectedSupplierFilter])
+
+  // Filtered Suppliers list
+  const filteredSuppliers = React.useMemo(() => {
+    return suppliers.filter(s => {
+      const nameMatch = s.name.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+      const categoryMatch = (s.category || '').toLowerCase().includes(supplierSearchTerm.toLowerCase())
+      const phoneMatch = (s.phone || '').includes(supplierSearchTerm)
+      return nameMatch || categoryMatch || phoneMatch
+    })
+  }, [suppliers, supplierSearchTerm])
 
   // Total amount computed
   const totalPurchasesAmount = React.useMemo(() => {
@@ -615,11 +627,17 @@ export default function PurchaseList() {
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500"
                   >
                     <option value="Viandes">Viandes</option>
+                    <option value="Poissons & Fruits de Mer">Poissons & Fruits de Mer</option>
                     <option value="Épicerie">Épicerie</option>
                     <option value="Laitiers">Produits Laitiers</option>
                     <option value="Boulangerie">Boulangerie</option>
                     <option value="Fruits & Légumes">Fruits & Légumes</option>
                     <option value="Boissons">Boissons</option>
+                    <option value="Café & Thé">Café & Thé</option>
+                    <option value="Sirops & Toppings">Sirops & Toppings</option>
+                    <option value="Emballages & Consommables">Emballages & Consommables</option>
+                    <option value="Produits d'entretien">Produits d'entretien</option>
+                    <option value="Autre">Autre</option>
                   </select>
                 </div>
 
@@ -665,8 +683,22 @@ export default function PurchaseList() {
 
           {/* Supplier Table Card */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm lg:col-span-2">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">Catalogue des Fournisseurs</h3>
+              
+              {/* Search Suppliers */}
+              <div className="relative max-w-xs w-full">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                  <Search size={14} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Rechercher un fournisseur..."
+                  value={supplierSearchTerm}
+                  onChange={(e) => setSupplierSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-1.5 pl-9 pr-3 text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
 
             {loadingSuppliers ? (
@@ -674,9 +706,9 @@ export default function PurchaseList() {
                 <Loader2 size={32} className="animate-spin text-emerald-600 mb-2" />
                 <p className="text-slate-400 text-sm">Chargement des fournisseurs...</p>
               </div>
-            ) : suppliers.length === 0 ? (
+            ) : filteredSuppliers.length === 0 ? (
               <div className="py-20 text-center text-slate-450 text-sm">
-                Aucun fournisseur enregistré.
+                Aucun fournisseur trouvé.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -691,7 +723,7 @@ export default function PurchaseList() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
-                    {suppliers.map((s) => (
+                    {filteredSuppliers.map((s) => (
                       <tr key={s._id} className="hover:bg-slate-550/5 text-sm">
                         <td className="py-4 px-6 font-bold text-slate-800 dark:text-slate-200">
                           {s.name}

@@ -9,7 +9,7 @@ router.get('/', protect, async (req, res) => {
   try {
     const filter = {};
     if (req.query.date) filter.date = req.query.date;
-    if (req.query.pole) filter.pole = req.query.pole;
+    if (req.query.pole && req.query.pole !== 'All') filter.pole = req.query.pole;
     if (req.query.month) filter.date = { $regex: `^${req.query.month}` };
 
     const movements = await StockMovement.find(filter)
@@ -32,7 +32,10 @@ router.get('/yesterday', protect, async (req, res) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const yDate = yesterday.toISOString().split('T')[0];
 
-    const movements = await StockMovement.find({ date: yDate, pole })
+    const filter = { date: yDate };
+    if (pole !== 'All') filter.pole = pole;
+
+    const movements = await StockMovement.find(filter)
       .populate('productId', 'name unit');
     res.json(movements);
   } catch (err) {

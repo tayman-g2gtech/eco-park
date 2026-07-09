@@ -13,6 +13,18 @@ import {
 import client from '@/api/client'
 import { toast } from 'sonner'
 
+const CATEGORIES = [
+  'Viande', 'Charcuterie', 'Pain', 'Fromage-Lait-Beurre',
+  'Épicerie', 'Légumes', 'Fruits', 'Boisson', 'Sirop',
+  'Chocolaterie', 'Café-Thé', 'Fruits Secs', 'Eau',
+  'Topping', 'Crème', 'Arôme', 'Farine', 'Nouveautés',
+  'Poudre', 'Poisson', 'Autre'
+]
+
+const UNITS = [
+  'kg', 'l', 'pièce', 'boite', 'sachet', 'botte', 'Autre'
+]
+
 export default function Products() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,14 +36,15 @@ export default function Products() {
   const [modalMode, setModalMode] = useState('create') // 'create' | 'edit'
   const [selectedProduct, setSelectedProduct] = useState(null)
   
-  // Form fields
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
+    category: 'Viande',
     pole: 'PDJ',
     unit: 'kg',
     quantityAlert: 1
   })
+  const [customCategory, setCustomCategory] = useState('')
+  const [customUnit, setCustomUnit] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const fetchProducts = async () => {
@@ -55,24 +68,31 @@ export default function Products() {
   const handleOpenCreateModal = () => {
     setFormData({
       name: '',
-      category: '',
+      category: 'Viande',
       pole: 'PDJ',
       unit: 'kg',
       quantityAlert: 1
     })
+    setCustomCategory('')
+    setCustomUnit('')
     setModalMode('create')
     setIsModalOpen(true)
   }
 
   const handleOpenEditModal = (prod) => {
     setSelectedProduct(prod)
+    const isStandardCategory = CATEGORIES.filter(c => c !== 'Autre').includes(prod.category)
+    const isStandardUnit = UNITS.filter(u => u !== 'Autre').includes(prod.unit)
+    
     setFormData({
       name: prod.name,
-      category: prod.category || '',
+      category: isStandardCategory ? (prod.category || '') : 'Autre',
       pole: prod.pole,
-      unit: prod.unit || 'kg',
+      unit: isStandardUnit ? (prod.unit || 'kg') : 'Autre',
       quantityAlert: prod.quantityAlert || 1
     })
+    setCustomCategory(isStandardCategory ? '' : (prod.category || ''))
+    setCustomUnit(isStandardUnit ? '' : (prod.unit || ''))
     setModalMode('edit')
     setIsModalOpen(true)
   }
@@ -84,18 +104,30 @@ export default function Products() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.name.trim() || !formData.category.trim()) {
+    const finalCategory = formData.category === 'Autre' ? customCategory.trim() : formData.category
+    const finalUnit = formData.unit === 'Autre' ? customUnit.trim() : formData.unit
+
+    if (!formData.name.trim() || !finalCategory) {
       toast.error('Veuillez remplir le nom et la catégorie')
+      return
+    }
+    if (!finalUnit) {
+      toast.error('Veuillez remplir l\'unité de mesure')
       return
     }
 
     setSubmitting(true)
     try {
+      const payload = {
+        ...formData,
+        category: finalCategory,
+        unit: finalUnit
+      }
       if (modalMode === 'create') {
-        await client.post('/products', formData)
+        await client.post('/products', payload)
         toast.success('Produit ajouté avec succès !')
       } else {
-        await client.put(`/products/${selectedProduct._id}`, formData)
+        await client.put(`/products/${selectedProduct._id}`, payload)
         toast.success('Produit modifié avec succès !')
       }
       handleCloseModal()
@@ -297,14 +329,27 @@ export default function Products() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Catégorie</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Viande, Pain, Sirop"
+                  <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500"
                     required
-                  />
+                  >
+                    <option value="" disabled>Sélectionner une catégorie</option>
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  {formData.category === 'Autre' && (
+                    <input
+                      type="text"
+                      placeholder="Saisir la catégorie..."
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2 px-3 text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                      required
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -325,14 +370,27 @@ export default function Products() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Unité de mesure</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: kg, boite, l, pièce"
+                  <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500"
                     required
-                  />
+                  >
+                    <option value="" disabled>Sélectionner une unité</option>
+                    {UNITS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                  {formData.unit === 'Autre' && (
+                    <input
+                      type="text"
+                      placeholder="Saisir l'unité..."
+                      value={customUnit}
+                      onChange={(e) => setCustomUnit(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2 px-3 text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                      required
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1">

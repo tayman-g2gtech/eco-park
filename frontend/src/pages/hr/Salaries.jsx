@@ -31,6 +31,13 @@ export default function Salaries() {
   const [generatingExpense, setGeneratingExpense] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
   const [editingAdvances, setEditingAdvances] = useState({}) // salaryId -> number
+  const [validation, setValidation] = useState({
+    lastWeekScheduleExists: false,
+    isCurrentMonth: false,
+    isPastMonth: false,
+    isFutureMonth: false,
+    currentDay: 1
+  })
 
   const fetchSalaries = async () => {
     setLoading(true)
@@ -38,6 +45,13 @@ export default function Salaries() {
       const response = await client.get(`/salaries?month=${selectedMonth}`)
       setSalaries(response.data.salaries || [])
       setTotalNet(response.data.totalNetToPay || 0)
+      setValidation({
+        lastWeekScheduleExists: response.data.lastWeekScheduleExists || false,
+        isCurrentMonth: response.data.isCurrentMonth || false,
+        isPastMonth: response.data.isPastMonth || false,
+        isFutureMonth: response.data.isFutureMonth || false,
+        currentDay: response.data.currentDay || 1
+      })
     } catch (err) {
       console.error('Error fetching salaries:', err)
       toast.error('Erreur lors du chargement des fiches de paie')
@@ -45,6 +59,9 @@ export default function Salaries() {
       setLoading(false)
     }
   }
+
+  const isGenerationAllowed = validation.isPastMonth || 
+    (validation.isCurrentMonth && (validation.currentDay >= 20 || validation.lastWeekScheduleExists))
 
   useEffect(() => {
     fetchSalaries()
@@ -179,12 +196,17 @@ export default function Salaries() {
 
       {/* Action buttons panel */}
       {salaries.length > 0 && (
-        <div className="flex flex-wrap gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm items-center justify-between non-printable">
-          <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm items-start md:items-center justify-between non-printable">
+          <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
             <button
               onClick={handleGenerateExpense}
-              disabled={generatingExpense}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl py-2.5 px-5 shadow-sm active:scale-[0.98] transition-all flex items-center space-x-2 shrink-0"
+              disabled={generatingExpense || !isGenerationAllowed}
+              className={`font-semibold text-sm rounded-xl py-2.5 px-5 shadow-sm active:scale-[0.98] transition-all flex items-center space-x-2 shrink-0 ${
+                isGenerationAllowed
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700'
+              }`}
+              title={isGenerationAllowed ? "Générer la Charge de Paie" : "La validation finale de la charge est bloquée (disponible le 20+ du mois avec planning complet)"}
             >
               {generatingExpense ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -207,9 +229,15 @@ export default function Salaries() {
               )}
               <span>Recalculer depuis le Planning</span>
             </button>
+
+            {!isGenerationAllowed && (
+              <span className="text-[11px] text-amber-600 dark:text-amber-500 bg-amber-50/50 dark:bg-amber-950/10 border border-amber-250/20 px-3 py-1.5 rounded-xl font-medium">
+                ⚠️ Imputation Dashboard bloquée (attendre le 20 + planning complet)
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 w-full md:w-auto justify-end">
             <button
               onClick={handleExportExcel}
               disabled={exportingExcel}

@@ -19,7 +19,7 @@ export default function StockMovements() {
   const [selectedDate, setSelectedDate] = useState(() => {
     return new Date().toISOString().split('T')[0] // YYYY-MM-DD
   })
-  const [selectedPole, setSelectedPole] = useState('PDJ')
+  const [selectedPole, setSelectedPole] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   
@@ -96,17 +96,29 @@ export default function StockMovements() {
         remainingStock,
         isUnderAlert,
         movementId: todayMove ? todayMove._id : null,
-        isSaved: todayMove && !isEdited
+        isSaved: todayMove && !isEdited,
+        updatedAt: todayMove ? new Date(todayMove.updatedAt).getTime() : 0
       }
     })
   }, [products, movements, yesterdayMovements, editedData])
 
   // Filtered table data
   const filteredData = React.useMemo(() => {
-    return tableData.filter(row => {
+    const list = tableData.filter(row => {
       const matchSearch = row.product.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchCat = selectedCategory === 'All' || row.product.category === selectedCategory
       return matchSearch && matchCat
+    })
+    
+    // Sort recently updated movements first (updatedAt desc), then by category & name
+    return [...list].sort((a, b) => {
+      if (b.updatedAt !== a.updatedAt) {
+        return b.updatedAt - a.updatedAt // Higher/newer timestamps first
+      }
+      const catA = a.product.category || ''
+      const catB = b.product.category || ''
+      if (catA !== catB) return catA.localeCompare(catB)
+      return a.product.name.localeCompare(b.product.name)
     })
   }, [tableData, searchTerm, selectedCategory])
 
@@ -150,7 +162,7 @@ export default function StockMovements() {
       await client.post('/stock-movements', {
         productId: prodId,
         date: selectedDate,
-        pole: selectedPole,
+        pole: row.product.pole,
         yesterdayStock: row.yesterdayStock,
         addedQuantity: row.addedQuantity || 0,
         consumedQuantity: row.consumedQuantity || 0
@@ -192,7 +204,7 @@ export default function StockMovements() {
         await client.post('/stock-movements', {
           productId: row.product._id,
           date: selectedDate,
-          pole: selectedPole,
+          pole: row.product.pole,
           yesterdayStock: row.yesterdayStock,
           addedQuantity: row.addedQuantity || 0,
           consumedQuantity: row.consumedQuantity || 0
@@ -255,8 +267,8 @@ export default function StockMovements() {
       </div>
 
       {/* Pôle Tabs */}
-      <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl max-w-md border border-slate-200/60 dark:border-slate-800/80">
-        {['PDJ', 'Bar', 'Creperie'].map((pole) => (
+      <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl max-w-lg border border-slate-200/60 dark:border-slate-800/80">
+        {['All', 'PDJ', 'Bar', 'Creperie'].map((pole) => (
           <button
             key={pole}
             onClick={() => setSelectedPole(pole)}
@@ -266,7 +278,7 @@ export default function StockMovements() {
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            {pole === 'Creperie' ? 'Crêperie' : pole}
+            {pole === 'All' ? 'Tous' : (pole === 'Creperie' ? 'Crêperie' : pole)}
           </button>
         ))}
       </div>
