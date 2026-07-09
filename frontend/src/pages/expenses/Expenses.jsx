@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Receipt, 
-  Coins, 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  Loader2, 
+import {
+  Receipt,
+  Coins,
+  Plus,
+  Trash2,
+  Edit2,
+  Loader2,
   Calendar,
   DollarSign,
   TrendingUp,
@@ -35,7 +35,7 @@ export default function Expenses() {
   // Expense Form state
   const [expenseForm, setExpenseForm] = useState({
     name: '',
-    category: 'fixed', // 'fixed' | 'variable'
+    category: 'variable', // 'fixed' | 'variable'
     amount: '',
     paidAt: new Date().toISOString().split('T')[0],
     description: ''
@@ -293,22 +293,20 @@ export default function Expenses() {
       <div className="flex space-x-4 border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab('expenses')}
-          className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${
-            activeTab === 'expenses'
+          className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'expenses'
               ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-500'
               : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           <Receipt size={16} />
           <span>Charges & Frais Fixes</span>
         </button>
         <button
           onClick={() => setActiveTab('revenues')}
-          className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${
-            activeTab === 'revenues'
+          className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${activeTab === 'revenues'
               ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-500'
               : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           <TrendingUp size={16} />
           <span>Suivi du Chiffre d'Affaires</span>
@@ -322,7 +320,7 @@ export default function Expenses() {
             <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">
               {editingExpenseId ? 'Modifier la Charge' : 'Ajouter une Charge'}
             </h3>
-            
+
             <form onSubmit={handleExpenseSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nom du frais</label>
@@ -468,11 +466,10 @@ export default function Expenses() {
                             {formatDate(exp.paidAt)}
                           </td>
                           <td className="py-4 px-4">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                              exp.category === 'fixed' 
-                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400' 
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${exp.category === 'fixed'
+                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400'
                                 : 'bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400'
-                            }`}>
+                              }`}>
                               {exp.category === 'fixed' ? 'Fixe' : 'Variable'}
                             </span>
                           </td>
@@ -524,7 +521,7 @@ export default function Expenses() {
               <CoinsIcon size={18} className="text-emerald-600" />
               <span>{editingRevenueId ? 'Modifier le CA' : 'Saisir un Chiffre d\'Affaires'}</span>
             </h3>
-            
+
             <form onSubmit={handleRevenueSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
