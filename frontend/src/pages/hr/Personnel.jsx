@@ -11,6 +11,18 @@ import client from '@/api/client'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 
+const POSITIONS = [
+  'Caissier',
+  'Barman',
+  'Serveur',
+  'Chef Cuisinier',
+  'Cuisinier',
+  'Crêpier',
+  'Agent PDJ',
+  'Commis',
+  'Autre'
+]
+
 export default function Personnel() {
   const [employees, setEmployees] = useState([])
   const [loadingStaff, setLoadingStaff] = useState(true)
@@ -25,6 +37,7 @@ export default function Personnel() {
     baseSalaryNet: '',
     dailyRate: ''
   })
+  const [customPosition, setCustomPosition] = useState('')
   const [submittingStaff, setSubmittingStaff] = useState(false)
   const [editingStaffId, setEditingStaffId] = useState(null)
 
@@ -49,14 +62,17 @@ export default function Personnel() {
   // Staff CRUD actions
   const handleStaffSubmit = async (e) => {
     e.preventDefault()
-    if (!staffForm.fullName.trim() || !staffForm.employeeNumber || !staffForm.baseSalaryNet) {
-      toast.error('Veuillez remplir le nom, le numéro et le salaire de base')
+    const finalPosition = staffForm.position === 'Autre' ? customPosition.trim() : staffForm.position
+
+    if (!staffForm.fullName.trim() || !staffForm.employeeNumber || !staffForm.baseSalaryNet || !finalPosition) {
+      toast.error('Veuillez remplir le nom, le numéro, le poste et le salaire de base')
       return
     }
 
     setSubmittingStaff(true)
     const payload = {
       ...staffForm,
+      position: finalPosition,
       employeeNumber: Number(staffForm.employeeNumber),
       baseSalaryNet: Number(staffForm.baseSalaryNet),
       dailyRate: staffForm.dailyRate ? Number(staffForm.dailyRate) : undefined
@@ -81,6 +97,7 @@ export default function Personnel() {
         baseSalaryNet: '',
         dailyRate: ''
       })
+      setCustomPosition('')
       fetchStaff()
     } catch (err) {
       console.error('Error saving employee:', err)
@@ -92,15 +109,17 @@ export default function Personnel() {
 
   const handleEditStaff = (emp) => {
     setEditingStaffId(emp._id)
+    const isStandardPosition = POSITIONS.filter(p => p !== 'Autre').includes(emp.position)
     setStaffForm({
       fullName: emp.fullName,
       employeeNumber: String(emp.employeeNumber),
-      position: emp.position || '',
+      position: isStandardPosition ? (emp.position || '') : 'Autre',
       pole: emp.pole || 'Service',
       paymentType: emp.paymentType || 'Mensuel',
       baseSalaryNet: String(emp.baseSalaryNet),
       dailyRate: emp.dailyRate ? String(emp.dailyRate) : ''
     })
+    setCustomPosition(isStandardPosition ? '' : (emp.position || ''))
   }
 
   const handleDeleteStaff = async (id, name) => {
@@ -126,6 +145,7 @@ export default function Personnel() {
       baseSalaryNet: '',
       dailyRate: ''
     })
+    setCustomPosition('')
   }
 
   return (
@@ -198,14 +218,27 @@ export default function Personnel() {
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Poste / Fonction</label>
-              <input
-                type="text"
-                placeholder="Ex: Chef de rang, Barman..."
+              <select
                 value={staffForm.position}
                 onChange={(e) => setStaffForm({ ...staffForm, position: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500 hover:cursor-pointer"
                 required
-              />
+              >
+                <option value="" disabled>Sélectionner un poste</option>
+                {POSITIONS.map(pos => (
+                  <option key={pos} value={pos}>{pos}</option>
+                ))}
+              </select>
+              {staffForm.position === 'Autre' && (
+                <input
+                  type="text"
+                  placeholder="Saisir le poste..."
+                  value={customPosition}
+                  onChange={(e) => setCustomPosition(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2 px-3 text-sm mt-1 focus:outline-none focus:border-emerald-500 animate-in slide-in-from-top-1 duration-200"
+                  required
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -225,6 +258,7 @@ export default function Personnel() {
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Salaire Net (DH)</label>
                 <input
                   type="number"
+                  step="any"
                   placeholder="Salaire Net"
                   value={staffForm.baseSalaryNet}
                   onChange={(e) => {
@@ -252,6 +286,7 @@ export default function Personnel() {
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Taux journalier (Optionnel)</label>
               <input
                 type="number"
+                step="any"
                 placeholder="Taux par jour (si journalier)"
                 value={staffForm.dailyRate}
                 onChange={(e) => {
