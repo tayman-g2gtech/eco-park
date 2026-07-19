@@ -22,9 +22,14 @@ router.post('/', protect, async (req, res) => {
   try {
     const date = new Date(req.body.date);
     const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const amount          = Number(req.body.amount)          || 0;
+    const unpaidAmount    = Number(req.body.unpaidAmount)    || 0;
+    const cancelledAmount = Number(req.body.cancelledAmount) || 0;
+    const netAmount       = Math.max(0, amount - unpaidAmount - cancelledAmount);
+
     const revenue = await Revenue.findOneAndUpdate(
       { date },
-      { ...req.body, month },
+      { ...req.body, amount, unpaidAmount, cancelledAmount, netAmount, month },
       { upsert: true, new: true, runValidators: true }
     );
     res.status(201).json(revenue);
@@ -36,7 +41,19 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/revenues/:id
 router.put('/:id', protect, async (req, res) => {
   try {
-    const revenue = await Revenue.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const existing = await Revenue.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Revenu introuvable' });
+
+    const amount          = req.body.amount          !== undefined ? Number(req.body.amount)          : existing.amount;
+    const unpaidAmount    = req.body.unpaidAmount    !== undefined ? Number(req.body.unpaidAmount)    : existing.unpaidAmount;
+    const cancelledAmount = req.body.cancelledAmount !== undefined ? Number(req.body.cancelledAmount) : existing.cancelledAmount;
+    const netAmount       = Math.max(0, amount - unpaidAmount - cancelledAmount);
+
+    const revenue = await Revenue.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, amount, unpaidAmount, cancelledAmount, netAmount },
+      { new: true }
+    );
     res.json(revenue);
   } catch (err) {
     res.status(400).json({ message: err.message });

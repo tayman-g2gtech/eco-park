@@ -104,6 +104,35 @@ router.post('/generate', protect, async (req, res) => {
   }
 });
 
+// POST /api/salaries/init?month=2026-06
+// Initialise les fiches de paie vides (saisie manuelle) — sans planning
+// Réinitialise toutes les fiches du mois à 0 (daysWorked=0, advances=0, netToPay=0)
+router.post('/init', protect, async (req, res) => {
+  try {
+    const { month } = req.query;
+    if (!month) return res.status(400).json({ message: 'month requis (YYYY-MM)' });
+
+    const employees = await Employee.find({ isActive: true });
+    if (employees.length === 0) {
+      return res.status(400).json({ message: 'Aucun employé actif trouvé' });
+    }
+
+    const results = [];
+    for (const emp of employees) {
+      const salary = await SalaryPayment.findOneAndUpdate(
+        { employeeId: emp._id, month },
+        { daysWorked: 0, restDays: 0, advances: 0, netToPay: 0, isPaid: false },
+        { upsert: true, new: true }
+      );
+      results.push(salary);
+    }
+
+    res.json({ message: `${results.length} fiches initialisées à zéro pour la saisie manuelle`, results });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // PUT /api/salaries/:id
 router.put('/:id', protect, async (req, res) => {
   try {

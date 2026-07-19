@@ -15,8 +15,12 @@ const C = {
   COL_HDR_FG:  '0F172A',  // slate-950
   ROW_ODD:     'FFFFFF',
   ROW_EVEN:    'F8FAFC',  // slate-50
-  GRAND_BG:    'E2E8F0',  // slate-200
-  GRAND_FG:    '0F172A',  // slate-950
+  GRAND_BG:    'D1FAE5',  // emerald-100 pour le total
+  GRAND_FG:    '065F46',  // emerald-800
+  NET_COL_BG:  'ECFDF5',  // emerald-50  — colonne CA Net
+  NET_COL_FG:  '065F46',  // emerald-800
+  UNPAID_FG:   'EA580C',  // orange-600
+  CANCEL_FG:   'DC2626',  // red-600
   BORDER:      'CBD5E1',  // slate-300
   BORDER_DARK: '64748B',  // slate-500
 }
@@ -65,11 +69,16 @@ const S = {
   sub:     makeStyle({ bg: C.SUBTITLE_BG, fg: C.SUBTITLE_FG, bold: false, sz: 9,  h: 'left', italic: true }),
   empty:   makeStyle({ noBorder: true }),
   hdr:     makeStyle({ bg: C.COL_HDR_BG,  fg: C.COL_HDR_FG,  bold: true, sz: 9, h: 'center', med: true }),
+  hdrNet:  makeStyle({ bg: 'A7F3D0', fg: '065F46', bold: true, sz: 9, h: 'center', med: true }), // emerald net header
   dataL:   (even) => makeStyle({ bg: even ? C.ROW_EVEN : C.ROW_ODD, h: 'left' }),
   dataC:   (even) => makeStyle({ bg: even ? C.ROW_EVEN : C.ROW_ODD, h: 'center' }),
   dataR:   (even) => makeStyle({ bg: even ? C.ROW_EVEN : C.ROW_ODD, h: 'right', numFmt: '#,##0.00' }),
+  dataRed: (even) => makeStyle({ bg: even ? C.ROW_EVEN : C.ROW_ODD, fg: C.CANCEL_FG, h: 'right', numFmt: '#,##0.00' }),
+  dataOrg: (even) => makeStyle({ bg: even ? C.ROW_EVEN : C.ROW_ODD, fg: C.UNPAID_FG, h: 'right', numFmt: '#,##0.00' }),
+  dataNet: (even) => makeStyle({ bg: 'ECFDF5', fg: '065F46', bold: true, h: 'right', numFmt: '#,##0.00' }),
   grandL:  makeStyle({ bg: C.GRAND_BG,  fg: C.GRAND_FG,  bold: true, sz: 11, med: true }),
   grandR:  makeStyle({ bg: C.GRAND_BG,  fg: C.GRAND_FG,  bold: true, sz: 11, h: 'right', med: true, numFmt: '#,##0.00' }),
+  grandNet:makeStyle({ bg: 'A7F3D0',    fg: '065F46',    bold: true, sz: 11, h: 'right', med: true, numFmt: '#,##0.00' }),
 }
 
 // ─── Format helpers ────────────────────────────────────────────────────────────
@@ -87,9 +96,6 @@ function fmtMonth(ym) {
   return `${months[parseInt(m, 10) - 1]} ${y}`
 }
 
-const DATA_START_COL = 1
-const TOTAL_COLS = 5  // A through E
-
 // ─── Sheet builder ─────────────────────────────────────────────────────────────
 function buildSheet(revenues, month) {
   const ws = {}
@@ -104,6 +110,9 @@ function buildSheet(revenues, month) {
   function mergeCols(row, fromCol, toCol) {
     merges.push({ s: { r: row, c: fromCol }, e: { r: row, c: toCol } })
   }
+
+  const TOTAL_COLS = 8  // A through H (margin + 7 data cols)
+  const DATA_START_COL = 1
 
   // ── Row 0: top margin ──
   r = 0
@@ -129,35 +138,62 @@ function buildSheet(revenues, month) {
 
   // ── Row 4: Column Headers ──
   r = 4
-  const headers = ['N°', 'Date de déclaration', 'Note / Détail', 'CA Déclaré (DH)']
+  const headers = [
+    'N°',
+    'Date de déclaration',
+    'Note / Détail',
+    'CA Brut POS (DH)',
+    'Non Payé (DH)',
+    'Annulé (DH)',
+    'CA Net (DH)',
+  ]
   setCell(r, 0, '', S.empty)
-  headers.forEach((h, i) => setCell(r, DATA_START_COL + i, h, S.hdr))
+  headers.forEach((h, i) => {
+    const isNet = i === 6
+    setCell(r, DATA_START_COL + i, h, isNet ? S.hdrNet : S.hdr)
+  })
 
   // Sort revenues by date ascending
   const sortedRevenues = [...revenues].sort((a, b) => new Date(a.date) - new Date(b.date))
 
-  let grandTotal = 0
+  let grandTotalBrut = 0
+  let grandTotalUnpaid = 0
+  let grandTotalCancelled = 0
+  let grandTotalNet = 0
   let rowNum = 1
 
   sortedRevenues.forEach((rev, idx) => {
     r++
     const even = idx % 2 === 1
-    grandTotal += rev.amount || 0
+    const brut      = rev.amount          || 0
+    const unpaid    = rev.unpaidAmount    || 0
+    const cancelled = rev.cancelledAmount || 0
+    const net       = rev.netAmount       ?? (brut - unpaid - cancelled)
+    grandTotalBrut      += brut
+    grandTotalUnpaid    += unpaid
+    grandTotalCancelled += cancelled
+    grandTotalNet       += net
 
     setCell(r, 0, '', S.empty)
-    setCell(r, DATA_START_COL + 0, rowNum++,                      S.dataC(even))
-    setCell(r, DATA_START_COL + 1, fmtDate(rev.date),             S.dataC(even))
-    setCell(r, DATA_START_COL + 2, rev.description || 'Chiffre d\'affaires quotidien', S.dataL(even))
-    setCell(r, DATA_START_COL + 3, rev.amount || 0,               S.dataR(even))
+    setCell(r, DATA_START_COL + 0, rowNum++,                                              S.dataC(even))
+    setCell(r, DATA_START_COL + 1, fmtDate(rev.date),                                    S.dataC(even))
+    setCell(r, DATA_START_COL + 2, rev.description || 'Chiffre d\'affaires quotidien',   S.dataL(even))
+    setCell(r, DATA_START_COL + 3, brut,                                                 S.dataR(even))
+    setCell(r, DATA_START_COL + 4, unpaid    > 0 ? -unpaid    : 0,                       S.dataOrg(even))
+    setCell(r, DATA_START_COL + 5, cancelled > 0 ? -cancelled : 0,                       S.dataRed(even))
+    setCell(r, DATA_START_COL + 6, net,                                                  S.dataNet(even))
   })
 
-  // ── Grand Total ──
+  // ── Grand Totals ──
   r++
   setCell(r, 0, '', S.empty)
   for (let c = DATA_START_COL; c < TOTAL_COLS; c++) setCell(r, c, '', S.grandL)
-  setCell(r, DATA_START_COL,     'CHIFFRE D\'AFFAIRES TOTAL DU MOIS', S.grandL)
+  setCell(r, DATA_START_COL,     'TOTAUX DU MOIS', S.grandL)
   mergeCols(r, DATA_START_COL, DATA_START_COL + 2)
-  setCell(r, DATA_START_COL + 3, grandTotal, S.grandR)
+  setCell(r, DATA_START_COL + 3, grandTotalBrut,       S.grandR)
+  setCell(r, DATA_START_COL + 4, -grandTotalUnpaid,    S.grandR)
+  setCell(r, DATA_START_COL + 5, -grandTotalCancelled, S.grandR)
+  setCell(r, DATA_START_COL + 6, grandTotalNet,        S.grandNet)
 
   // ── Bottom margin ──
   r++
@@ -171,7 +207,10 @@ function buildSheet(revenues, month) {
     { wch: 5  },  // B — N°
     { wch: 22 },  // C — Date de déclaration
     { wch: 38 },  // D — Note / Détail
-    { wch: 22 },  // E — CA Déclaré
+    { wch: 20 },  // E — CA Brut POS
+    { wch: 18 },  // F — Non Payé
+    { wch: 18 },  // G — Annulé
+    { wch: 20 },  // H — CA Net
   ]
   ws['!rows'] = [
     { hpt: 8  },  // row 0 top margin

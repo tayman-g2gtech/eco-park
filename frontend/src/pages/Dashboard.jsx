@@ -146,6 +146,8 @@ export default function Dashboard() {
   // Quick CA entry form state
   const [caDate, setCaDate] = useState(() => new Date().toISOString().split('T')[0])
   const [caAmount, setCaAmount] = useState('')
+  const [caUnpaid, setCaUnpaid] = useState('')
+  const [caCancelled, setCaCancelled] = useState('')
   const [caDescription, setCaDescription] = useState('')
   const [caSubmitting, setCaSubmitting] = useState(false)
 
@@ -194,12 +196,16 @@ export default function Dashboard() {
     setCaSubmitting(true)
     try {
       await client.post('/revenues', {
-        date: caDate,
-        amount: Number(caAmount),
-        description: caDescription || 'CA Saisi'
+        date:            caDate,
+        amount:          Number(caAmount),
+        unpaidAmount:    Number(caUnpaid)    || 0,
+        cancelledAmount: Number(caCancelled) || 0,
+        description:     caDescription || 'CA Saisi'
       })
       toast.success('Chiffre d\'Affaires ajouté avec succès !')
       setCaAmount('')
+      setCaUnpaid('')
+      setCaCancelled('')
       setCaDescription('')
       fetchData() // Refresh dashboard
     } catch (err) {
@@ -497,7 +503,7 @@ export default function Dashboard() {
             </div>
             
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Montant (DH)</label>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">CA Brut POS (DH)</label>
               <input
                 type="number"
                 placeholder="Ex: 8500"
@@ -509,6 +515,43 @@ export default function Dashboard() {
                 step="0.01"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-orange-500 uppercase tracking-wider">Non Payé (DH)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={caUnpaid}
+                  onChange={(e) => setCaUnpaid(e.target.value)}
+                  className="w-full bg-orange-50/50 dark:bg-orange-950/10 border border-orange-200 dark:border-orange-900/30 text-slate-800 dark:text-slate-100 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-orange-400 font-mono"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-red-500 uppercase tracking-wider">Annulé (DH)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={caCancelled}
+                  onChange={(e) => setCaCancelled(e.target.value)}
+                  className="w-full bg-red-50/50 dark:bg-red-950/10 border border-red-200 dark:border-red-900/30 text-slate-800 dark:text-slate-100 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-red-400 font-mono"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            {/* CA Net preview */}
+            {(caAmount || caUnpaid || caCancelled) && (
+              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-3 py-2.5">
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">CA Net</span>
+                <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono">
+                  {Math.max(0, (Number(caAmount) || 0) - (Number(caUnpaid) || 0) - (Number(caCancelled) || 0)).toLocaleString('fr-MA')} DH
+                </span>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Note (optionnelle)</label>

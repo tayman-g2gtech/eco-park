@@ -28,16 +28,11 @@ export default function Salaries() {
   const [totalNet, setTotalNet] = useState(0)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [initializing, setInitializing] = useState(false)  // Nouvel état pour l'init manuelle
   const [generatingExpense, setGeneratingExpense] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
-  const [editingAdvances, setEditingAdvances] = useState({}) // salaryId -> number
-  const [validation, setValidation] = useState({
-    lastWeekScheduleExists: false,
-    isCurrentMonth: false,
-    isPastMonth: false,
-    isFutureMonth: false,
-    currentDay: 1
-  })
+  // editingRows: { [salaryId]: { daysWorked?: number, advances?: number } }
+  const [editingRows, setEditingRows] = useState({})
 
   const fetchSalaries = async () => {
     setLoading(true)
@@ -45,13 +40,6 @@ export default function Salaries() {
       const response = await client.get(`/salaries?month=${selectedMonth}`)
       setSalaries(response.data.salaries || [])
       setTotalNet(response.data.totalNetToPay || 0)
-      setValidation({
-        lastWeekScheduleExists: response.data.lastWeekScheduleExists || false,
-        isCurrentMonth: response.data.isCurrentMonth || false,
-        isPastMonth: response.data.isPastMonth || false,
-        isFutureMonth: response.data.isFutureMonth || false,
-        currentDay: response.data.currentDay || 1
-      })
     } catch (err) {
       console.error('Error fetching salaries:', err)
       toast.error('Erreur lors du chargement des fiches de paie')
@@ -60,19 +48,34 @@ export default function Salaries() {
     }
   }
 
-  const isGenerationAllowed = validation.isPastMonth || 
-    (validation.isCurrentMonth && (validation.currentDay >= 20 || validation.lastWeekScheduleExists))
+  const isGenerationAllowed = true // La génération de charge est toujours disponible en mode saisie manuelle
 
   useEffect(() => {
     fetchSalaries()
   }, [selectedMonth])
 
-  // Generate payroll for the month
+  // Initialise les fiches de paie vides pour la saisie manuelle
+  const handleInitPayroll = async () => {
+    if (!window.confirm(`Initialiser / réinitialiser toutes les fiches de paie à zéro pour ${selectedMonth} ?\nLes valeurs actuelles seront écrasées.`)) return
+    setInitializing(true)
+    try {
+      const response = await client.post(`/salaries/init?month=${selectedMonth}`)
+      toast.success(response.data.message || 'Fiches initialisées !')
+      fetchSalaries()
+    } catch (err) {
+      console.error('Error initializing payroll:', err)
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'initialisation')
+    } finally {
+      setInitializing(false)
+    }
+  }
+
+  // Generate payroll for the month from planning
   const handleGeneratePayroll = async () => {
     setGenerating(true)
     try {
       await client.post(`/salaries/generate?month=${selectedMonth}`)
-      toast.success('Fiches de paie générées avec succès !')
+      toast.success('Fiches de paie calculées depuis le planning !')
       fetchSalaries()
     } catch (err) {
       console.error('Error generating payroll:', err)
@@ -82,31 +85,33 @@ export default function Salaries() {
     }
   }
 
-  // Update salary advance value
-  const handleAdvanceChange = (salaryId, val) => {
+  // Update a row field (daysWorked or advances) in edit state
+  const handleRowFieldChange = (salaryId, field, val) => {
     const num = val === '' ? '' : Math.max(0, Number(val))
-    setEditingAdvances(prev => ({
+    setEditingRows(prev => ({
       ...prev,
-      [salaryId]: num
+      [salaryId]: { ...prev[salaryId], [field]: num }
     }))
   }
 
-  // Save changes (Advances / worked days) to a salary payment
+  // Save all pending changes for a salary row
   const handleSaveSalaryChanges = async (sal) => {
-    const newVal = editingAdvances[sal._id]
-    if (newVal === undefined) return
+    const edits = editingRows[sal._id]
+    if (!edits || Object.keys(edits).length === 0) return
 
     try {
-      const response = await client.put(`/salaries/${sal._id}`, {
-        advances: Number(newVal)
-      })
-      toast.success('Avance sur salaire enregistrée')
+      const payload = {
+        daysWorked: edits.daysWorked ?? sal.daysWorked,
+        advances:   edits.advances   ?? sal.advances
+      }
+      const response = await client.put(`/salaries/${sal._id}`, payload)
+      toast.success('Modifications enregistrées')
 
       // Update local state
       setSalaries(prev => prev.map(s => s._id === sal._id ? response.data : s))
 
-      // Clear edit cache
-      setEditingAdvances(prev => {
+      // Clear edit cache for this row
+      setEditingRows(prev => {
         const copy = { ...prev }
         delete copy[sal._id]
         return copy
@@ -114,8 +119,7 @@ export default function Salaries() {
 
       // Recalculate total
       const updatedSals = salaries.map(s => s._id === sal._id ? response.data : s)
-      const sum = updatedSals.reduce((acc, curr) => acc + curr.netToPay, 0)
-      setTotalNet(sum)
+      setTotalNet(updatedSals.reduce((acc, curr) => acc + curr.netToPay, 0))
     } catch (err) {
       console.error('Error saving salary updates:', err)
       toast.error('Erreur de mise à jour')
@@ -198,15 +202,12 @@ export default function Salaries() {
       {salaries.length > 0 && (
         <div className="flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm items-start md:items-center justify-between non-printable">
           <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
+            {/* Bouton principal : Générer la Charge */}
             <button
               onClick={handleGenerateExpense}
-              disabled={generatingExpense || !isGenerationAllowed}
-              className={`font-semibold text-sm rounded-xl py-2.5 px-5 shadow-sm active:scale-[0.98] transition-all flex items-center space-x-2 shrink-0 ${
-                isGenerationAllowed
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700'
-              }`}
-              title={isGenerationAllowed ? "Générer la Charge de Paie" : "La validation finale de la charge est bloquée (disponible le 20+ du mois avec planning complet)"}
+              disabled={generatingExpense}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl py-2.5 px-5 shadow-sm active:scale-[0.98] transition-all flex items-center space-x-2 shrink-0"
+              title="Imputer la charge de paie vers le Dashboard"
             >
               {generatingExpense ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -216,25 +217,35 @@ export default function Salaries() {
               <span>Générer la Charge de Paie</span>
             </button>
 
+            {/* Bouton secondaire : Recalculer depuis le Planning */}
             <button
               onClick={handleGeneratePayroll}
               disabled={generating}
               className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-350 font-semibold text-sm rounded-xl py-2.5 px-5 transition-all flex items-center space-x-2 shrink-0"
-              title="Recalculer les jours travaillés à partir du planning"
+              title="Recalculer les jours travaillés depuis le planning (si actif)"
             >
               {generating ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <RefreshCw size={16} />
               )}
-              <span>Recalculer depuis le Planning</span>
+              <span>Recalculer depuis Planning</span>
             </button>
 
-            {!isGenerationAllowed && (
-              <span className="text-[11px] text-amber-600 dark:text-amber-500 bg-amber-50/50 dark:bg-amber-950/10 border border-amber-250/20 px-3 py-1.5 rounded-xl font-medium">
-                ⚠️ Imputation Dashboard bloquée (attendre le 20 + planning complet)
-              </span>
-            )}
+            {/* Bouton réinitialisation manuelle */}
+            <button
+              onClick={handleInitPayroll}
+              disabled={initializing}
+              className="bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 font-semibold text-sm rounded-xl py-2.5 px-5 transition-all flex items-center space-x-2 shrink-0"
+              title="Réinitialiser toutes les fiches à 0 pour la saisie manuelle"
+            >
+              {initializing ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Calculator size={16} />
+              )}
+              <span>Réinit. Saisie Manuelle</span>
+            </button>
           </div>
 
           <div className="flex items-center space-x-3 w-full md:w-auto justify-end">
@@ -272,23 +283,29 @@ export default function Salaries() {
               <Calculator size={32} />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg">Aucune fiche de paie générée</h3>
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg">Aucune fiche de paie pour ce mois</h3>
               <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-                Les fiches de paie de ce mois n'ont pas encore été calculées. L'application va extraire les présences de tous les plannings du mois ({selectedMonth}) pour générer les paies de base.
+                Choisissez le mode de génération : <strong>Saisie manuelle</strong> (recommandé si le planning n'est pas utilisé) ou <strong>depuis le Planning</strong>.
               </p>
             </div>
-            <button
-              onClick={handleGeneratePayroll}
-              disabled={generating}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl py-3 text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
-            >
-              {generating ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <RefreshCw size={16} />
-              )}
-              <span>Générer et Calculer la Paie</span>
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleInitPayroll}
+                disabled={initializing}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl py-3 text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
+              >
+                {initializing ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
+                <span>Initialiser les fiches (Saisie Manuelle)</span>
+              </button>
+              <button
+                onClick={handleGeneratePayroll}
+                disabled={generating}
+                className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-semibold rounded-xl py-3 text-sm transition-all flex items-center justify-center space-x-2"
+              >
+                {generating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                <span>Calculer depuis le Planning</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div>
@@ -313,8 +330,11 @@ export default function Salaries() {
                     const emp = s.employeeId
                     if (!emp) return null
 
-                    const isEditing = editingAdvances[s._id] !== undefined
-                    const advancesVal = isEditing ? editingAdvances[s._id] : s.advances
+                    const rowEdits = editingRows[s._id] || {}
+                    const isEditing = Object.keys(rowEdits).length > 0
+
+                    const daysWorkedVal = rowEdits.daysWorked !== undefined ? rowEdits.daysWorked : s.daysWorked
+                    const advancesVal   = rowEdits.advances   !== undefined ? rowEdits.advances   : s.advances
 
                     return (
                       <tr key={s._id} className="hover:bg-slate-550/5 text-sm">
@@ -341,26 +361,38 @@ export default function Salaries() {
                             ? `${emp.dailyRate} DH/j`
                             : `${emp.baseSalaryNet} DH/m`}
                         </td>
-                        <td className="py-4 px-4 text-center font-semibold font-mono text-slate-750 dark:text-slate-300">
-                          {s.daysWorked} jours
+
+                        {/* Jours Travaillés — éditable manuellement */}
+                        <td className="py-2.5 px-4 text-center bg-slate-100/10 dark:bg-slate-950/10 non-printable">
+                          <input
+                            type="number"
+                            value={daysWorkedVal === 0 && rowEdits.daysWorked === undefined ? '' : daysWorkedVal}
+                            placeholder="0"
+                            onChange={(e) => handleRowFieldChange(s._id, 'daysWorked', e.target.value)}
+                            className="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 text-center py-1.5 px-2 rounded-lg text-sm font-mono focus:outline-none"
+                            min="0"
+                            max="31"
+                            step="1"
+                          />
                         </td>
+
                         <td className="py-4 px-4 text-center font-mono text-slate-500">
                           {s.restDays} j
                         </td>
 
-                        {/* Advances Input (non printable or inputs read-only on print) */}
+                        {/* Avances — éditable */}
                         <td className="py-2.5 px-4 text-center bg-slate-100/10 dark:bg-slate-950/10 non-printable">
                           <input
                             type="number"
-                            value={advancesVal === 0 && !isEditing ? '' : advancesVal}
+                            value={advancesVal === 0 && rowEdits.advances === undefined ? '' : advancesVal}
                             placeholder="0"
-                            onChange={(e) => handleAdvanceChange(s._id, e.target.value)}
+                            onChange={(e) => handleRowFieldChange(s._id, 'advances', e.target.value)}
                             className="w-24 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 text-center py-1.5 px-2 rounded-lg text-sm font-mono focus:outline-none"
                             min="0"
                           />
                         </td>
 
-                        {/* Net to pay */}
+                        {/* Net à payer */}
                         <td className="py-4 px-4 text-right font-extrabold font-mono text-slate-900 dark:text-slate-100">
                           {formatCurrency(s.netToPay)}
                         </td>
@@ -371,13 +403,13 @@ export default function Salaries() {
                               <button
                                 onClick={() => handleSaveSalaryChanges(s)}
                                 className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg hover:shadow-sm transition-all"
-                                title="Sauvegarder l'avance"
+                                title="Sauvegarder les modifications"
                               >
                                 <Check size={14} />
                               </button>
                             ) : (
                               <span className="text-[10px] text-slate-400 font-semibold bg-slate-50 dark:bg-slate-950 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                Validé
+                                Valider
                               </span>
                             )}
                           </div>

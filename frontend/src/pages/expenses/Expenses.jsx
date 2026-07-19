@@ -48,7 +48,9 @@ export default function Expenses() {
   // Revenue Form state
   const [revenueForm, setRevenueForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    amount: '',
+    amount: '',           // CA Brut POS
+    unpaidAmount: '',     // Commandes non payées
+    cancelledAmount: '',  // Commandes annulées
     description: ''
   })
   const [submittingRevenue, setSubmittingRevenue] = useState(false)
@@ -204,24 +206,26 @@ export default function Expenses() {
 
     setSubmittingRevenue(true)
     try {
+      const payload = {
+        ...revenueForm,
+        amount:          Number(revenueForm.amount)          || 0,
+        unpaidAmount:    Number(revenueForm.unpaidAmount)    || 0,
+        cancelledAmount: Number(revenueForm.cancelledAmount) || 0,
+      }
       if (editingRevenueId) {
-        await client.put(`/revenues/${editingRevenueId}`, {
-          ...revenueForm,
-          amount: Number(revenueForm.amount)
-        })
+        await client.put(`/revenues/${editingRevenueId}`, payload)
         toast.success('CA modifié avec succès')
         setEditingRevenueId(null)
       } else {
-        await client.post('/revenues', {
-          ...revenueForm,
-          amount: Number(revenueForm.amount)
-        })
+        await client.post('/revenues', payload)
         toast.success('CA enregistré avec succès')
       }
 
       setRevenueForm({
         date: new Date().toISOString().split('T')[0],
         amount: '',
+        unpaidAmount: '',
+        cancelledAmount: '',
         description: ''
       })
       fetchRevenues()
@@ -236,9 +240,11 @@ export default function Expenses() {
   const handleEditRevenue = (rev) => {
     setEditingRevenueId(rev._id)
     setRevenueForm({
-      date: new Date(rev.date).toISOString().split('T')[0],
-      amount: String(rev.amount),
-      description: rev.description || ''
+      date:            new Date(rev.date).toISOString().split('T')[0],
+      amount:          String(rev.amount          || 0),
+      unpaidAmount:    String(rev.unpaidAmount    || 0),
+      cancelledAmount: String(rev.cancelledAmount || 0),
+      description:     rev.description || ''
     })
   }
 
@@ -257,9 +263,11 @@ export default function Expenses() {
   const handleCancelEditRevenue = () => {
     setEditingRevenueId(null)
     setRevenueForm({
-      date: new Date().toISOString().split('T')[0],
-      amount: '',
-      description: ''
+      date:            new Date().toISOString().split('T')[0],
+      amount:          '',
+      unpaidAmount:    '',
+      cancelledAmount: '',
+      description:     ''
     })
   }
 
@@ -268,8 +276,9 @@ export default function Expenses() {
     return expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
   }, [expenses])
 
+  // Use netAmount for totals (CA Brut - Non Payé - Annulé)
   const totalRevenuesAmount = React.useMemo(() => {
-    return revenues.reduce((sum, r) => sum + (r.amount || 0), 0)
+    return revenues.reduce((sum, r) => sum + (r.netAmount ?? r.amount ?? 0), 0)
   }, [revenues])
 
   return (
@@ -537,8 +546,9 @@ export default function Expenses() {
                 />
               </div>
 
+              {/* CA Brut POS */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Montant déclaré (DH)</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">CA Brut POS (DH)</label>
                 <input
                   type="number"
                   placeholder="Ex: 6800"
@@ -550,6 +560,50 @@ export default function Expenses() {
                   step="0.01"
                 />
               </div>
+
+              {/* Ajustements POS */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-orange-500 uppercase tracking-wider">Non Payé (DH)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={revenueForm.unpaidAmount}
+                    onChange={(e) => setRevenueForm({ ...revenueForm, unpaidAmount: e.target.value })}
+                    className="w-full bg-orange-50/50 dark:bg-orange-950/10 border border-orange-200 dark:border-orange-900/30 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-orange-400 font-mono"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-red-500 uppercase tracking-wider">Annulé (DH)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={revenueForm.cancelledAmount}
+                    onChange={(e) => setRevenueForm({ ...revenueForm, cancelledAmount: e.target.value })}
+                    className="w-full bg-red-50/50 dark:bg-red-950/10 border border-red-200 dark:border-red-900/30 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-red-400 font-mono"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              {/* CA Net preview — calculé en temps réel */}
+              {(revenueForm.amount || revenueForm.unpaidAmount || revenueForm.cancelledAmount) && (
+                <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">CA Net Calculé</span>
+                  <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-base">
+                    {formatCurrency(
+                      Math.max(0,
+                        (Number(revenueForm.amount)          || 0) -
+                        (Number(revenueForm.unpaidAmount)    || 0) -
+                        (Number(revenueForm.cancelledAmount) || 0)
+                      )
+                    )}
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Note (optionnelle)</label>
@@ -617,9 +671,12 @@ export default function Expenses() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-550 text-xs font-bold uppercase tracking-wider">
-                        <th className="py-4 px-6">Date de déclaration</th>
+                        <th className="py-4 px-6">Date</th>
                         <th className="py-4 px-4">Note / Détail</th>
-                        <th className="py-4 px-4 text-right">CA Déclaré</th>
+                        <th className="py-4 px-4 text-right">CA Brut</th>
+                        <th className="py-4 px-4 text-right text-orange-600">Non Payé</th>
+                        <th className="py-4 px-4 text-right text-red-500">Annulé</th>
+                        <th className="py-4 px-4 text-right text-emerald-600">CA Net</th>
                         <th className="py-4 px-6 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -632,8 +689,17 @@ export default function Expenses() {
                           <td className="py-4 px-4 text-slate-600 dark:text-slate-400 font-medium">
                             {rev.description || 'Chiffre d\'affaires quotidien'}
                           </td>
-                          <td className="py-4 px-4 text-right font-extrabold font-mono text-emerald-700 dark:text-emerald-400">
+                          <td className="py-4 px-4 text-right font-mono text-slate-500 dark:text-slate-400">
                             {formatCurrency(rev.amount)}
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono text-orange-600 dark:text-orange-400">
+                            {rev.unpaidAmount ? `- ${formatCurrency(rev.unpaidAmount)}` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono text-red-500 dark:text-red-400">
+                            {rev.cancelledAmount ? `- ${formatCurrency(rev.cancelledAmount)}` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-right font-extrabold font-mono text-emerald-700 dark:text-emerald-400">
+                            {formatCurrency(rev.netAmount ?? rev.amount)}
                           </td>
                           <td className="py-3 px-6 text-center">
                             <div className="flex items-center justify-center space-x-1">
@@ -662,11 +728,14 @@ export default function Expenses() {
             </div>
 
             {/* Total Footer (Excel Style) */}
-            <div className="bg-slate-50 dark:bg-slate-950 p-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <span className="font-bold text-sm text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Total CA Cumulé
-              </span>
-              <span className="font-extrabold text-xl text-emerald-650 dark:text-emerald-400 font-mono">
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 p-6 border-t border-emerald-200 dark:border-emerald-800/40 flex justify-between items-center">
+              <div>
+                <span className="font-bold text-sm text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                  Total CA Net Cumulé
+                </span>
+                <p className="text-[10px] text-slate-400 mt-0.5">Après déduction Non Payé & Annulé</p>
+              </div>
+              <span className="font-extrabold text-xl text-emerald-700 dark:text-emerald-400 font-mono">
                 {formatCurrency(totalRevenuesAmount)}
               </span>
             </div>

@@ -16,7 +16,7 @@ router.get('/kpis', protect, async (req, res) => {
     const [purchasesData, expensesData, revenuesData, salariesData] = await Promise.all([
       Purchase.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
       Expense.aggregate([{ $match: { month } }, { $group: { _id: '$category', total: { $sum: '$amount' } } }]),
-      Revenue.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      Revenue.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$netAmount' } } }]),
       SalaryPayment.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$netToPay' } } }]),
     ]);
 
@@ -77,7 +77,7 @@ router.get('/trend', protect, async (req, res) => {
       const [purchases, expenses, revenues, salaries] = await Promise.all([
         Purchase.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
         Expense.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-        Revenue.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+        Revenue.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$netAmount' } } }]),
         SalaryPayment.aggregate([{ $match: { month } }, { $group: { _id: null, total: { $sum: '$netToPay' } } }]),
       ]);
 
