@@ -126,6 +126,26 @@ export default function Salaries() {
     }
   }
 
+  // Toggle payment status of a salary
+  const handleTogglePayStatus = async (sal) => {
+    try {
+      const response = await client.put(`/salaries/${sal._id}`, {
+        isPaid: !sal.isPaid
+      })
+      toast.success(response.data.isPaid ? 'Marqué comme payé !' : 'Paiement annulé')
+
+      // Update local state
+      setSalaries(prev => prev.map(s => s._id === sal._id ? response.data : s))
+
+      // Recalculate total
+      const updatedSals = salaries.map(s => s._id === sal._id ? response.data : s)
+      setTotalNet(updatedSals.reduce((acc, curr) => acc + curr.netToPay, 0))
+    } catch (err) {
+      console.error('Error toggling pay status:', err)
+      toast.error('Erreur lors du changement de statut')
+    }
+  }
+
   // Generate Fixed Expense for Dashboard
   const handleGenerateExpense = async () => {
     if (salaries.length === 0) {
@@ -408,9 +428,17 @@ export default function Salaries() {
                                 <Check size={14} />
                               </button>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-semibold bg-slate-50 dark:bg-slate-950 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                Valider
-                              </span>
+                              <button
+                                onClick={() => handleTogglePayStatus(s)}
+                                className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all border ${
+                                  s.isPaid
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-250/20 dark:border-emerald-800/40 hover:bg-red-50 hover:text-red-650 dark:hover:bg-red-950/20 dark:hover:text-red-400 hover:border-red-200'
+                                    : 'bg-slate-50 text-slate-550 dark:bg-slate-950 dark:text-slate-450 border-slate-200 dark:border-slate-800 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                                }`}
+                                title={s.isPaid ? "Cliquer pour marquer comme À payer" : "Cliquer pour marquer comme Payé"}
+                              >
+                                {s.isPaid ? 'Payé' : 'À payer'}
+                              </button>
                             )}
                           </div>
                         </td>
