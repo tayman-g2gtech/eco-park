@@ -17,6 +17,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import authRoutes from './routes/auth.js';
 import revenueRoutes from './routes/revenues.js';
 import userRoutes from './routes/users.js';
+import employeeConsumptionRoutes from './routes/employeeConsumptions.js';
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ app.use('/api/salaries', salaryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/revenues', revenueRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/employee-consumptions', employeeConsumptionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -56,7 +56,8 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
       items: [
         { name: "Personnel", path: "/hr/personnel", icon: Users },
         { name: "Planning", path: "/hr/planning", icon: CalendarDays },
-        { name: "Masse Salariale", path: "/hr/salaries", icon: Banknote }
+        { name: "Masse Salariale", path: "/hr/salaries", icon: Banknote },
+        { name: "Consommations Employés", path: "/hr/consumptions", icon: UtensilsCrossed }
       ]
     }
   ]

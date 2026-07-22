@@ -21,6 +21,7 @@ import Expenses from '@/pages/expenses/Expenses'
 import Personnel from '@/pages/hr/Personnel'
 import Planning from '@/pages/hr/Planning'
 import Salaries from '@/pages/hr/Salaries'
+import EmployeeConsumption from '@/pages/hr/EmployeeConsumption'
 import SettingsPage from '@/pages/Settings'
 import Documentation from '@/pages/admin/Documentation'
 import UserManagement from '@/pages/admin/UserManagement'
@@ -143,6 +144,7 @@ export default function App() {
               <Route path="/hr/personnel" element={<Personnel />} />
               <Route path="/hr/planning" element={<Planning />} />
               <Route path="/hr/salaries" element={<Salaries />} />
+              <Route path="/hr/consumptions" element={<EmployeeConsumption />} />
               <Route path="/settings" element={<SettingsPage />} />
 
               {/* Admin-only Routes */}
