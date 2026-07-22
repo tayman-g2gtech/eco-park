@@ -41,15 +41,22 @@ router.get('/summary', protect, async (req, res) => {
       fiche.items.forEach(item => {
         if (!item.productId) return;
         const pid = item.productId._id.toString();
+        const numQty = parseFloat(item.quantity) || 0;
+        const displayUnit = item.unit || item.productId.unit || '';
+
         if (!totals[pid]) {
           totals[pid] = {
             product: item.productId,
             totalQuantity: 0,
+            unit: displayUnit,
             daysPresent: 0
           };
         }
-        totals[pid].totalQuantity += item.quantity;
+        totals[pid].totalQuantity += numQty;
         totals[pid].daysPresent += 1;
+        if (item.unit) {
+          totals[pid].unit = item.unit; // Override if custom unit set
+        }
       });
     });
 
@@ -89,8 +96,16 @@ router.post('/', protect, async (req, res) => {
     const { date, items, notes } = req.body;
     if (!date) return res.status(400).json({ message: 'La date est requise' });
 
-    // Filtrer les items avec quantité > 0
-    const validItems = (items || []).filter(i => i.productId && i.quantity > 0);
+    // Filtrer les items ayant une quantité non vide
+    const validItems = (items || []).filter(i => {
+      if (!i.productId) return false;
+      const qStr = String(i.quantity ?? '').trim();
+      return qStr !== '' && qStr !== '0';
+    }).map(i => ({
+      productId: i.productId,
+      quantity: String(i.quantity).trim(),
+      unit: (i.unit || '').trim()
+    }));
 
     const fiche = await EmployeeConsumption.findOneAndUpdate(
       { date },

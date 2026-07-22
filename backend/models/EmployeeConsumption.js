@@ -6,7 +6,8 @@ const EmployeeConsumptionSchema = new mongoose.Schema({
   items: [
     {
       productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-      quantity: { type: Number, required: true, default: 0 }
+      quantity: { type: mongoose.Schema.Types.Mixed, required: true, default: '' }, // String or Number (ex: "80", "60 g")
+      unit: { type: String, default: '' } // Unité personnalisée (ex: "g", "pièce", "boîte")
     }
   ],
   notes: { type: String },

@@ -12,8 +12,7 @@ import {
   Plus,
   Minus,
   AlertCircle,
-  Trash2,
-  PlusCircle
+  Trash2
 } from 'lucide-react'
 import client from '@/api/client'
 import DayCarousel from '@/components/shared/DayCarousel'
@@ -63,8 +62,11 @@ export default function EmployeeConsumption() {
   // Selected product ID to add from dropdown
   const [selectedToAdd, setSelectedToAdd] = useState('')
 
-  // Daily quantities map: productId -> quantity (string for input)
-  const [quantities, setQuantities] = useState({})
+  // Daily quantities map: productId -> quantity (string)
+  const [quantities, setQuantities]   = useState({})
+  // Custom unit override map: productId -> unit string (ex: 'g', 'pièce', 'kg')
+  const [customUnits, setCustomUnits] = useState({})
+
   const [savedItems, setSavedItems] = useState([])   // items from DB for the day
   const [notes, setNotes]           = useState('')
   const [loadingDay, setLoadingDay] = useState(false)
@@ -108,14 +110,17 @@ export default function EmployeeConsumption() {
       setNotes(fiche.notes || '')
 
       const qMap = {}
+      const uMap = {}
       const savedIds = []
       fiche.items.forEach(item => {
         if (item.productId?._id) {
-          qMap[item.productId._id] = String(item.quantity)
+          qMap[item.productId._id] = String(item.quantity ?? '')
+          uMap[item.productId._id] = item.unit || item.productId.unit || ''
           savedIds.push(item.productId._id)
         }
       })
       setQuantities(qMap)
+      setCustomUnits(uMap)
 
       // Active products = defaults + any saved products
       const combined = Array.from(new Set([...defaultProductIds, ...savedIds]))
@@ -125,6 +130,7 @@ export default function EmployeeConsumption() {
       setSavedItems([])
       setNotes('')
       setQuantities({})
+      setCustomUnits({})
       setActiveProductIds(defaultProductIds)
     } finally {
       setLoadingDay(false)
@@ -183,26 +189,32 @@ export default function EmployeeConsumption() {
   }, [products, activeProductIds, filterPole, filterCat, searchTerm])
 
   const totalFilled = useMemo(() =>
-    activeProductIds.filter(id => Number(quantities[id]) > 0).length,
+    activeProductIds.filter(id => {
+      const q = (quantities[id] || '').trim()
+      return q !== '' && q !== '0'
+    }).length,
     [activeProductIds, quantities]
   )
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleQtyChange = (productId, value) => {
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setQuantities(prev => ({ ...prev, [productId]: value }))
-      setSaved(false)
-    }
+    setQuantities(prev => ({ ...prev, [productId]: value }))
+    setSaved(false)
+  }
+
+  const handleUnitChange = (productId, value) => {
+    setCustomUnits(prev => ({ ...prev, [productId]: value }))
+    setSaved(false)
   }
 
   const handleIncrement = (productId) => {
-    const cur = Number(quantities[productId] || 0)
-    handleQtyChange(productId, String(cur + 1))
+    const curNum = parseFloat(quantities[productId]) || 0
+    handleQtyChange(productId, String(curNum + 1))
   }
 
   const handleDecrement = (productId) => {
-    const cur = Number(quantities[productId] || 0)
-    if (cur > 0) handleQtyChange(productId, String(cur - 1))
+    const curNum = parseFloat(quantities[productId]) || 0
+    if (curNum > 0) handleQtyChange(productId, String(curNum - 1))
   }
 
   const handleAddProduct = (productId) => {
@@ -220,15 +232,30 @@ export default function EmployeeConsumption() {
       delete copy[productId]
       return copy
     })
+    setCustomUnits(prev => {
+      const copy = { ...prev }
+      delete copy[productId]
+      return copy
+    })
     setSaved(false)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const items = Object.entries(quantities)
-        .filter(([id, qty]) => activeProductIds.includes(id) && Number(qty) > 0)
-        .map(([productId, qty]) => ({ productId, quantity: Number(qty) }))
+      const items = activeProductIds
+        .filter(id => {
+          const q = (quantities[id] || '').trim()
+          return q !== '' && q !== '0'
+        })
+        .map(productId => {
+          const prod = products.find(p => p._id === productId)
+          return {
+            productId,
+            quantity: (quantities[productId] || '').trim(),
+            unit: (customUnits[productId] ?? (prod?.unit || '')).trim()
+          }
+        })
 
       await client.post('/employee-consumptions', { date: selectedDate, items, notes })
       setSaved(true)
@@ -243,6 +270,7 @@ export default function EmployeeConsumption() {
 
   const handleResetDay = () => {
     setQuantities({})
+    setCustomUnits({})
     setNotes('')
     setActiveProductIds(defaultProductIds)
     setSaved(false)
@@ -445,15 +473,16 @@ export default function EmployeeConsumption() {
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Produit</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Catégorie</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pôle</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Unité</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité consommée</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Unité de mesure</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {tableProducts.map(prod => {
-                    const qty = quantities[prod._id] || ''
-                    const hasValue = Number(qty) > 0
+                    const qty = quantities[prod._id] ?? ''
+                    const unitVal = customUnits[prod._id] ?? prod.unit ?? ''
+                    const hasValue = qty.trim() !== '' && qty.trim() !== '0'
 
                     return (
                       <tr
@@ -486,9 +515,8 @@ export default function EmployeeConsumption() {
                             {prod.pole}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{prod.unit}</td>
 
-                        {/* Quantity input with ± buttons */}
+                        {/* Free Quantity input with ± buttons */}
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -499,12 +527,11 @@ export default function EmployeeConsumption() {
                               <Minus size={13} />
                             </button>
                             <input
-                              type="number"
-                              min="0"
+                              type="text"
                               value={qty}
                               onChange={e => handleQtyChange(prod._id, e.target.value)}
                               placeholder="0"
-                              className={`w-20 text-center py-1.5 text-sm rounded-lg border transition-all ${
+                              className={`w-24 text-center py-1.5 text-sm rounded-lg border transition-all ${
                                 hasValue
                                   ? 'bg-orange-500/10 border-orange-500/50 text-orange-700 dark:text-orange-300 font-semibold'
                                   : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300'
@@ -517,6 +544,17 @@ export default function EmployeeConsumption() {
                               <Plus size={13} />
                             </button>
                           </div>
+                        </td>
+
+                        {/* Free Custom Unit input */}
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="text"
+                            value={unitVal}
+                            onChange={e => handleUnitChange(prod._id, e.target.value)}
+                            placeholder={prod.unit}
+                            className="w-20 text-center py-1 text-xs rounded-lg border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-orange-500"
+                          />
                         </td>
 
                         {/* Remove action */}
@@ -635,6 +673,7 @@ export default function EmployeeConsumption() {
                     const avg = summary.totalDays > 0
                       ? (pt.totalQuantity / summary.totalDays).toFixed(1)
                       : 0
+                    const unit = pt.unit || pt.product.unit || ''
                     return (
                       <tr key={pt.product._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{pt.product.name}</td>
@@ -649,13 +688,13 @@ export default function EmployeeConsumption() {
                             {pt.product.pole}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{pt.product.unit}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{unit}</td>
                         <td className="px-4 py-3 text-right font-bold text-orange-600 dark:text-orange-300">
-                          {pt.totalQuantity} <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">{pt.product.unit}</span>
+                          {pt.totalQuantity} <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">{unit}</span>
                         </td>
                         <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{pt.daysPresent}</td>
                         <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400 text-xs">
-                          {avg} {pt.product.unit}/j
+                          {avg} {unit}/j
                         </td>
                       </tr>
                     )

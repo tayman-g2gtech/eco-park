@@ -121,14 +121,15 @@ export function exportConsumptionExcel(summary) {
     const avg = summary.totalDays > 0
       ? Math.round((pt.totalQuantity / summary.totalDays) * 100) / 100
       : 0
+    const unit = pt.unit || pt.product.unit || '—'
 
     set(r, 1, pt.product.name,                    ev ? S.rowOdd('left')   : S.rowEven('left'))
     set(r, 2, pt.product.category || '—',         ev ? S.rowOdd('center') : S.rowEven('center'))
     set(r, 3, pt.product.pole || '—',             ev ? S.rowOdd('center') : S.rowEven('center'))
-    set(r, 4, pt.product.unit || '—',             ev ? S.rowOdd('center') : S.rowEven('center'))
+    set(r, 4, unit,                               ev ? S.rowOdd('center') : S.rowEven('center'))
     set(r, 5, pt.totalQuantity,                   S.rowRight(ev))
     set(r, 6, pt.daysPresent,                     ev ? S.rowOdd('center') : S.rowEven('center'))
-    set(r, 7, avg + ' ' + (pt.product.unit || ''), ev ? S.rowOdd('right')  : S.rowEven('right'))
+    set(r, 7, avg + ' ' + unit,                   ev ? S.rowOdd('right')  : S.rowEven('right'))
 
     grandTotal += pt.totalQuantity
     height(18)
