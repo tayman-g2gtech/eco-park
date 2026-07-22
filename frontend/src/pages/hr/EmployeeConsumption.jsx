@@ -25,20 +25,21 @@ import { fr } from 'date-fns/locale'
 import { exportConsumptionExcel } from '@/utils/exportConsumptionExcel'
 
 // ─── Produits Fréquents par Défaut ─────────────────────────────────────────────
-const DEFAULT_PRODUCT_NAMES = [
-  "THE",
-  "OEUFS",
-  "PAIN COMPLET",
-  "Pain blanc",
-  "Zitoun",
-  "MSEMEN GRANDE",
-  "Msemen petit",
-  "BEURRE FRAIS",
-  "AMLOU",
-  "Fromage",
-  "Hercha",
-  "CROISSANT Grande",
-  "croissant petit"
+
+const DEFAULT_PRODUCTS_CONFIG = [
+  { name: "THE", defaultUnit: "g" },
+  { name: "OEUFS", defaultUnit: "pièce" },
+  { name: "PAIN COMPLET", defaultUnit: "pièce" },
+  { name: "Pain blanc", defaultUnit: "piece" },
+  { name: "Zitoun", defaultUnit: "g" },
+  { name: "MSEMEN GRANDE", defaultUnit: "pièce" },
+  { name: "Msemen petit", defaultUnit: "pièce" },
+  { name: "BEURRE FRAIS", defaultUnit: "g" },
+  { name: "AMLOU", defaultUnit: "g" },
+  { name: "Fromage", defaultUnit: "pièce" },
+  { name: "Hercha", defaultUnit: "piece" },
+  { name: "CROISSANT Grande", defaultUnit: "pièce" },
+  { name: "croissant petit", defaultUnit: "piece" }
 ]
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -96,11 +97,24 @@ export default function EmployeeConsumption() {
   // ─── Compute Default Product IDs ─────────────────────────────────────────────
   const defaultProductIds = useMemo(() => {
     if (!products.length) return []
-    const normalizedDefaultNames = DEFAULT_PRODUCT_NAMES.map(n => n.trim().toLowerCase())
+
     return products
-      .filter(p => normalizedDefaultNames.includes(p.name.trim().toLowerCase()))
+      .filter(p =>
+        DEFAULT_PRODUCTS_CONFIG.some(
+          cfg => cfg.name.trim().toLowerCase() === p.name.trim().toLowerCase()
+        )
+      )
       .map(p => p._id)
   }, [products])
+
+  // Helper pour récupérer l'unité par défaut configurée pour un produit
+  const getDefaultUnitForProduct = useCallback((product) => {
+    if (!product) return ''
+    const config = DEFAULT_PRODUCTS_CONFIG.find(
+      cfg => cfg.name.trim().toLowerCase() === product.name.trim().toLowerCase()
+    )
+    return config?.defaultUnit || product.unit || ''
+  }, [])
 
   // ─── Fetch day fiche ────────────────────────────────────────────────────────
   const fetchDay = useCallback(async () => {
@@ -133,7 +147,15 @@ export default function EmployeeConsumption() {
       setSavedItems([])
       setNotes('')
       setQuantities({})
-      setCustomUnits({})
+
+      // Pré-remplir uniquement les unités personnalisées par défaut
+      const defaultUMap = {}
+      products.forEach(p => {
+        const defaultUnit = getDefaultUnitForProduct(p)
+        if (defaultUnit) defaultUMap[p._id] = defaultUnit
+      })
+      setCustomUnits(defaultUMap)
+
       setActiveProductIds(defaultProductIds)
     } finally {
       setLoadingDay(false)
@@ -273,8 +295,16 @@ export default function EmployeeConsumption() {
 
   const handleResetDay = () => {
     setQuantities({})
-    setCustomUnits({})
     setNotes('')
+
+    // Réinitialiser les unités vers leurs valeurs par défaut
+    const defaultUMap = {}
+    products.forEach(p => {
+      const defaultUnit = getDefaultUnitForProduct(p)
+      if (defaultUnit) defaultUMap[p._id] = defaultUnit
+    })
+    setCustomUnits(defaultUMap)
+
     setActiveProductIds(defaultProductIds)
     setSaved(false)
   }
@@ -324,8 +354,8 @@ export default function EmployeeConsumption() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.key
-                  ? 'bg-orange-600 text-white shadow-md shadow-orange-950/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                ? 'bg-orange-600 text-white shadow-md shadow-orange-950/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
                 }`}
             >
               <Icon size={15} />
@@ -366,10 +396,10 @@ export default function EmployeeConsumption() {
                 onClick={handleSave}
                 disabled={saving || totalFilled === 0}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${saved
-                    ? 'bg-emerald-600 text-white'
-                    : totalFilled === 0
-                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                      : 'bg-orange-600 hover:bg-orange-500 text-white shadow-md shadow-orange-950/30'
+                  ? 'bg-emerald-600 text-white'
+                  : totalFilled === 0
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-500 text-white shadow-md shadow-orange-950/30'
                   }`}
               >
                 {saving ? (
@@ -489,8 +519,8 @@ export default function EmployeeConsumption() {
                       <tr
                         key={prod._id}
                         className={`transition-colors duration-150 ${hasValue
-                            ? 'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-100/60 dark:hover:bg-orange-950/30'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                          ? 'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-100/60 dark:hover:bg-orange-950/30'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                           }`}
                       >
                         {/* Product name */}
@@ -507,9 +537,9 @@ export default function EmployeeConsumption() {
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{prod.category || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${prod.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                              prod.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                                prod.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                                  'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                            prod.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                              prod.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                             }`}>
                             {prod.pole}
                           </span>
@@ -531,8 +561,8 @@ export default function EmployeeConsumption() {
                               onChange={e => handleQtyChange(prod._id, e.target.value)}
                               placeholder="0"
                               className={`w-24 text-center py-1.5 text-sm rounded-lg border transition-all ${hasValue
-                                  ? 'bg-orange-500/10 border-orange-500/50 text-orange-700 dark:text-orange-300 font-semibold'
-                                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300'
+                                ? 'bg-orange-500/10 border-orange-500/50 text-orange-700 dark:text-orange-300 font-semibold'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300'
                                 } focus:outline-none focus:border-orange-500`}
                             />
                             <button
@@ -617,8 +647,8 @@ export default function EmployeeConsumption() {
                 <button
                   onClick={() => setMonthlyViewMode('byProduct')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${monthlyViewMode === 'byProduct'
-                      ? 'bg-orange-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                 >
                   <BarChart3 size={13} />
@@ -627,8 +657,8 @@ export default function EmployeeConsumption() {
                 <button
                   onClick={() => setMonthlyViewMode('byDate')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${monthlyViewMode === 'byDate'
-                      ? 'bg-orange-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                 >
                   <Calendar size={13} />
@@ -706,9 +736,9 @@ export default function EmployeeConsumption() {
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{pt.product.category || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${pt.product.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                              pt.product.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                                pt.product.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                                  'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                            pt.product.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                              pt.product.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                             }`}>
                             {pt.product.pole}
                           </span>
@@ -786,9 +816,9 @@ export default function EmployeeConsumption() {
                                 </td>
                                 <td className="px-4 py-2.5">
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${item.productId.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                                      item.productId.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                                        item.productId.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                                          'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                    item.productId.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                      item.productId.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                        'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                                     }`}>
                                     {item.productId.pole}
                                   </span>
