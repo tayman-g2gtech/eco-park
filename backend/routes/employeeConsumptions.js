@@ -25,7 +25,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // ─── GET /api/employee-consumptions/summary?month=YYYY-MM ─────────────────────
-// Agrégat mensuel : total par produit pour le mois
+// Agrégat mensuel : total par produit + détail par jour pour le mois
 router.get('/summary', protect, async (req, res) => {
   try {
     const { month } = req.query;
@@ -33,7 +33,9 @@ router.get('/summary', protect, async (req, res) => {
 
     const consumptions = await EmployeeConsumption.find({
       date: { $regex: `^${month}` }
-    }).populate('items.productId', 'name unit category pole');
+    }).populate('items.productId', 'name unit category pole')
+      .populate('createdBy', 'name username')
+      .sort({ date: -1 });
 
     // Aggregate by product
     const totals = {};
@@ -65,7 +67,8 @@ router.get('/summary', protect, async (req, res) => {
       totalDays: consumptions.length,
       productTotals: Object.values(totals).sort((a, b) =>
         a.product.name.localeCompare(b.product.name)
-      )
+      ),
+      dailyConsumptions: consumptions
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

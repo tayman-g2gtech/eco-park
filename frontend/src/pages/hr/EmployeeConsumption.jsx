@@ -12,7 +12,9 @@ import {
   Plus,
   Minus,
   AlertCircle,
-  Trash2
+  Trash2,
+  Calendar,
+  Layers
 } from 'lucide-react'
 import client from '@/api/client'
 import DayCarousel from '@/components/shared/DayCarousel'
@@ -77,6 +79,7 @@ export default function EmployeeConsumption() {
   const [summary, setSummary]       = useState(null)
   const [loadingMonth, setLoadingMonth] = useState(false)
   const [exporting, setExporting]   = useState(false)
+  const [monthlyViewMode, setMonthlyViewMode] = useState('byProduct') // 'byProduct' | 'byDate'
 
   // UI filters
   const [searchTerm, setSearchTerm]   = useState('')
@@ -277,11 +280,11 @@ export default function EmployeeConsumption() {
   }
 
   const handleExportExcel = () => {
-    if (!summary || !summary.productTotals?.length) return
+    if (!summary || (!summary.productTotals?.length && !summary.dailyConsumptions?.length)) return
     setExporting(true)
     try {
       exportConsumptionExcel(summary)
-      toast.success('Export Excel téléchargé')
+      toast.success('Export Excel multi-feuilles téléchargé')
     } catch {
       toast.error('Erreur lors de l\'export Excel')
     } finally {
@@ -600,8 +603,8 @@ export default function EmployeeConsumption() {
           {/* Month picker */}
           <MonthCarousel value={selectedMonth} onChange={setSelectedMonth} />
 
-          {/* Header + export */}
-          <div className="flex items-center justify-between">
+          {/* Header + Mode View Toggle + Export */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 {format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: fr })}
@@ -612,14 +615,43 @@ export default function EmployeeConsumption() {
                 </p>
               )}
             </div>
-            <button
-              onClick={handleExportExcel}
-              disabled={exporting || !summary || !summary.productTotals?.length}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-            >
-              {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
-              Export Excel
-            </button>
+
+            <div className="flex items-center gap-3">
+              {/* Toggle par Produit vs par Date */}
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 text-xs">
+                <button
+                  onClick={() => setMonthlyViewMode('byProduct')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
+                    monthlyViewMode === 'byProduct'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <BarChart3 size={13} />
+                  Par Produit
+                </button>
+                <button
+                  onClick={() => setMonthlyViewMode('byDate')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
+                    monthlyViewMode === 'byDate'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Calendar size={13} />
+                  Par Date du Jour
+                </button>
+              </div>
+
+              <button
+                onClick={handleExportExcel}
+                disabled={exporting || !summary || (!summary.productTotals?.length && !summary.dailyConsumptions?.length)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              >
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+                Export Excel
+              </button>
+            </div>
           </div>
 
           {/* Stats cards */}
@@ -642,19 +674,20 @@ export default function EmployeeConsumption() {
             </div>
           )}
 
-          {/* Monthly table */}
+          {/* Monthly content */}
           {loadingMonth ? (
             <div className="flex items-center justify-center py-20 text-slate-500 dark:text-slate-400">
               <Loader2 size={24} className="animate-spin mr-3 text-orange-500" />
               Chargement du récapitulatif...
             </div>
-          ) : !summary || !summary.productTotals?.length ? (
+          ) : !summary || (!summary.productTotals?.length && !summary.dailyConsumptions?.length) ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
               <AlertCircle size={32} className="mb-3 opacity-40" />
               <p className="text-sm">Aucune donnée pour ce mois</p>
               <p className="text-xs mt-1 text-slate-400 dark:text-slate-500">Commencez la saisie dans l'onglet Journalier</p>
             </div>
-          ) : (
+          ) : monthlyViewMode === 'byProduct' ? (
+            /* ── Vue 1: PAR PRODUIT ── */
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead>
@@ -701,6 +734,91 @@ export default function EmployeeConsumption() {
                   })}
                 </tbody>
               </table>
+            </div>
+          ) : (
+            /* ── Vue 2: GROUPÉ PAR DATE DU JOUR ── */
+            <div className="space-y-4">
+              {summary.dailyConsumptions?.map(fiche => {
+                const formattedDate = format(parseISO(fiche.date), 'EEEE d MMMM yyyy', { locale: fr })
+
+                return (
+                  <div
+                    key={fiche.date}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm"
+                  >
+                    {/* Date Header Card */}
+                    <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500">
+                          <Calendar size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white capitalize">
+                            {formattedDate}
+                          </h3>
+                          {fiche.notes && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 italic mt-0.5">
+                              Note : {fiche.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        {fiche.items?.length || 0} produit{(fiche.items?.length || 0) > 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    {/* Table of items for this date */}
+                    {fiche.items && fiche.items.length > 0 ? (
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs uppercase">
+                            <th className="text-left px-5 py-2">Produit</th>
+                            <th className="text-left px-4 py-2">Catégorie</th>
+                            <th className="text-left px-4 py-2">Pôle</th>
+                            <th className="text-right px-5 py-2">Quantité</th>
+                            <th className="text-left px-4 py-2">Unité</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {fiche.items.map(item => {
+                            if (!item.productId) return null
+                            const unit = item.unit || item.productId.unit || '—'
+                            return (
+                              <tr key={item.productId._id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                                <td className="px-5 py-2.5 font-medium text-slate-800 dark:text-slate-200">
+                                  {item.productId.name}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">
+                                  {item.productId.category || '—'}
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                                    item.productId.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
+                                    item.productId.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                    item.productId.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                    'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                  }`}>
+                                    {item.productId.pole}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-2.5 text-right font-bold text-orange-600 dark:text-orange-300">
+                                  {item.quantity}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">
+                                  {unit}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="p-4 text-xs text-slate-400 text-center">Aucune saisie pour cette date</div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
