@@ -46,17 +46,17 @@ const todayStr = () => new Date().toISOString().split('T')[0]
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'daily',   label: 'Saisie Journalière', icon: CalendarDays },
+  { key: 'daily', label: 'Saisie Journalière', icon: CalendarDays },
   { key: 'monthly', label: 'Récapitulatif Mensuel', icon: BarChart3 }
 ]
 
 export default function EmployeeConsumption() {
-  const [activeTab, setActiveTab]       = useState('daily')
+  const [activeTab, setActiveTab] = useState('daily')
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [selectedMonth, setSelectedMonth] = useState(() => todayStr().slice(0, 7))
 
   // Product catalogue
-  const [products, setProducts]   = useState([])
+  const [products, setProducts] = useState([])
 
   // Active product IDs shown in the current day's table
   const [activeProductIds, setActiveProductIds] = useState([])
@@ -65,26 +65,26 @@ export default function EmployeeConsumption() {
   const [selectedToAdd, setSelectedToAdd] = useState('')
 
   // Daily quantities map: productId -> quantity (string)
-  const [quantities, setQuantities]   = useState({})
+  const [quantities, setQuantities] = useState({})
   // Custom unit override map: productId -> unit string (ex: 'g', 'pièce', 'kg')
   const [customUnits, setCustomUnits] = useState({})
 
   const [savedItems, setSavedItems] = useState([])   // items from DB for the day
-  const [notes, setNotes]           = useState('')
+  const [notes, setNotes] = useState('')
   const [loadingDay, setLoadingDay] = useState(false)
-  const [saving, setSaving]         = useState(false)
-  const [saved, setSaved]           = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   // Monthly summary
-  const [summary, setSummary]       = useState(null)
+  const [summary, setSummary] = useState(null)
   const [loadingMonth, setLoadingMonth] = useState(false)
-  const [exporting, setExporting]   = useState(false)
-  const [monthlyViewMode, setMonthlyViewMode] = useState('byProduct') // 'byProduct' | 'byDate'
+  const [exporting, setExporting] = useState(false)
+  const [monthlyViewMode, setMonthlyViewMode] = useState('byDate') // 'byProduct' | 'byDate'
 
   // UI filters
-  const [searchTerm, setSearchTerm]   = useState('')
-  const [filterPole, setFilterPole]   = useState('All')
-  const [filterCat, setFilterCat]     = useState('All')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterPole, setFilterPole] = useState('All')
+  const [filterCat, setFilterCat] = useState('All')
 
   // ─── Fetch products catalogue ───────────────────────────────────────────────
   useEffect(() => {
@@ -165,8 +165,8 @@ export default function EmployeeConsumption() {
   }, [activeTab, fetchMonth])
 
   // ─── Derived data ───────────────────────────────────────────────────────────
-  const poles    = useMemo(() => ['All', ...new Set(products.map(p => p.pole))], [products])
-  const cats     = useMemo(() => {
+  const poles = useMemo(() => ['All', ...new Set(products.map(p => p.pole))], [products])
+  const cats = useMemo(() => {
     const src = filterPole === 'All' ? products : products.filter(p => p.pole === filterPole)
     return ['All', ...new Set(src.map(p => p.category).filter(Boolean))]
   }, [products, filterPole])
@@ -183,7 +183,7 @@ export default function EmployeeConsumption() {
     let list = products.filter(p => activeSet.has(p._id))
 
     if (filterPole !== 'All') list = list.filter(p => p.pole === filterPole)
-    if (filterCat  !== 'All') list = list.filter(p => p.category === filterCat)
+    if (filterCat !== 'All') list = list.filter(p => p.category === filterCat)
     if (searchTerm) {
       const s = searchTerm.toLowerCase()
       list = list.filter(p => p.name.toLowerCase().includes(s))
@@ -323,11 +323,10 @@ export default function EmployeeConsumption() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                activeTab === tab.key
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.key
                   ? 'bg-orange-600 text-white shadow-md shadow-orange-950/30'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
-              }`}
+                }`}
             >
               <Icon size={15} />
               {tab.label}
@@ -366,13 +365,12 @@ export default function EmployeeConsumption() {
               <button
                 onClick={handleSave}
                 disabled={saving || totalFilled === 0}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                  saved
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${saved
                     ? 'bg-emerald-600 text-white'
                     : totalFilled === 0
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-500 text-white shadow-md shadow-orange-950/30'
-                }`}
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                      : 'bg-orange-600 hover:bg-orange-500 text-white shadow-md shadow-orange-950/30'
+                  }`}
               >
                 {saving ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -490,11 +488,10 @@ export default function EmployeeConsumption() {
                     return (
                       <tr
                         key={prod._id}
-                        className={`transition-colors duration-150 ${
-                          hasValue
+                        className={`transition-colors duration-150 ${hasValue
                             ? 'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-100/60 dark:hover:bg-orange-950/30'
                             : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                        }`}
+                          }`}
                       >
                         {/* Product name */}
                         <td className="px-4 py-3">
@@ -509,12 +506,11 @@ export default function EmployeeConsumption() {
                         </td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{prod.category || '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${
-                            prod.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                            prod.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                            prod.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                            'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${prod.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
+                              prod.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                prod.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                  'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                            }`}>
                             {prod.pole}
                           </span>
                         </td>
@@ -534,11 +530,10 @@ export default function EmployeeConsumption() {
                               value={qty}
                               onChange={e => handleQtyChange(prod._id, e.target.value)}
                               placeholder="0"
-                              className={`w-24 text-center py-1.5 text-sm rounded-lg border transition-all ${
-                                hasValue
+                              className={`w-24 text-center py-1.5 text-sm rounded-lg border transition-all ${hasValue
                                   ? 'bg-orange-500/10 border-orange-500/50 text-orange-700 dark:text-orange-300 font-semibold'
                                   : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300'
-                              } focus:outline-none focus:border-orange-500`}
+                                } focus:outline-none focus:border-orange-500`}
                             />
                             <button
                               onClick={() => handleIncrement(prod._id)}
@@ -621,22 +616,20 @@ export default function EmployeeConsumption() {
               <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 text-xs">
                 <button
                   onClick={() => setMonthlyViewMode('byProduct')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
-                    monthlyViewMode === 'byProduct'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${monthlyViewMode === 'byProduct'
                       ? 'bg-orange-600 text-white shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <BarChart3 size={13} />
                   Par Produit
                 </button>
                 <button
                   onClick={() => setMonthlyViewMode('byDate')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
-                    monthlyViewMode === 'byDate'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${monthlyViewMode === 'byDate'
                       ? 'bg-orange-600 text-white shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Calendar size={13} />
                   Par Date du Jour
@@ -712,12 +705,11 @@ export default function EmployeeConsumption() {
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{pt.product.name}</td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs">{pt.product.category || '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${
-                            pt.product.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                            pt.product.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                            pt.product.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                            'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${pt.product.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
+                              pt.product.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                pt.product.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                  'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                            }`}>
                             {pt.product.pole}
                           </span>
                         </td>
@@ -793,12 +785,11 @@ export default function EmployeeConsumption() {
                                   {item.productId.category || '—'}
                                 </td>
                                 <td className="px-4 py-2.5">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                                    item.productId.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                                    item.productId.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                                    item.productId.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                                    'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${item.productId.pole === 'PDJ' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
+                                      item.productId.pole === 'Bar' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                        item.productId.pole === 'Creperie' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                          'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                    }`}>
                                     {item.productId.pole}
                                   </span>
                                 </td>
