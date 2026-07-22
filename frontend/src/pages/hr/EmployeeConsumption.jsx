@@ -21,6 +21,7 @@ import MonthCarousel from '@/components/shared/MonthCarousel'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { exportConsumptionExcel } from '@/utils/exportConsumptionExcel'
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split('T')[0]
@@ -178,30 +179,11 @@ export default function EmployeeConsumption() {
     setSaved(false)
   }
 
-  // ─── Export Excel ────────────────────────────────────────────────────────────
-  const handleExportExcel = async () => {
-    if (!summary) return
+  const handleExportExcel = () => {
+    if (!summary || !summary.productTotals?.length) return
     setExporting(true)
     try {
-      const XLSX = await import('xlsx')
-      const rows = summary.productTotals.map(pt => ({
-        Produit: pt.product.name,
-        Catégorie: pt.product.category || '-',
-        Pôle: pt.product.pole,
-        Unité: pt.product.unit,
-        'Total Quantité': pt.totalQuantity,
-        'Jours de présence': pt.daysPresent
-      }))
-
-      const ws = XLSX.utils.json_to_sheet(rows)
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Consommations')
-
-      // Auto column widths
-      const colWidths = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length, 14) }))
-      ws['!cols'] = colWidths
-
-      XLSX.writeFile(wb, `Consommations_Employes_${selectedMonth}.xlsx`)
+      exportConsumptionExcel(summary)
       toast.success('Export Excel téléchargé')
     } catch {
       toast.error('Erreur lors de l\'export Excel')
