@@ -11,7 +11,8 @@ import {
   ArrowRight,
   TrendingUp,
   FileCheck,
-  Check
+  Check,
+  X
 } from 'lucide-react'
 import client from '@/api/client'
 import { formatCurrency } from '@/lib/utils'
@@ -33,6 +34,11 @@ export default function Salaries() {
   const [exportingExcel, setExportingExcel] = useState(false)
   // editingRows: { [salaryId]: { daysWorked?: number, advances?: number } }
   const [editingRows, setEditingRows] = useState({})
+
+  // ── Dialog confirmation paiement ──
+  const [payDialog, setPayDialog]         = useState(null) // { sal } | null
+  const [amountPaidInput, setAmountPaidInput] = useState('')
+  const [confirmingPay, setConfirmingPay] = useState(false)
 
   const fetchSalaries = async () => {
     setLoading(true)
@@ -126,23 +132,49 @@ export default function Salaries() {
     }
   }
 
-  // Toggle payment status of a salary
+  // Ouvre le dialog ou annule le paiement
   const handleTogglePayStatus = async (sal) => {
+    if (sal.isPaid) {
+      // Dé-marquer le paiement
+      if (!window.confirm(`Annuler le paiement de ${sal.employeeId?.fullName} ?`)) return
+      try {
+        const response = await client.put(`/salaries/${sal._id}`, { isPaid: false })
+        toast.success('Paiement annulé')
+        setSalaries(prev => prev.map(s => s._id === sal._id ? response.data : s))
+        const updatedSals = salaries.map(s => s._id === sal._id ? response.data : s)
+        setTotalNet(updatedSals.reduce((acc, curr) => acc + curr.netToPay, 0))
+      } catch (err) {
+        console.error('Error reverting pay status:', err)
+        toast.error("Erreur lors de l'annulation")
+      }
+    } else {
+      // Ouvrir le dialog de confirmation
+      setAmountPaidInput(String(sal.netToPay))
+      setPayDialog({ sal })
+    }
+  }
+
+  // Confirme le paiement avec le montant réel saisi
+  const handleConfirmPayment = async () => {
+    if (!payDialog) return
+    const { sal } = payDialog
+    const amountPaid = Number(amountPaidInput)
+    if (!amountPaid || amountPaid < 0) return
+
+    setConfirmingPay(true)
     try {
-      const response = await client.put(`/salaries/${sal._id}`, {
-        isPaid: !sal.isPaid
-      })
-      toast.success(response.data.isPaid ? 'Marqué comme payé !' : 'Paiement annulé')
-
-      // Update local state
+      const response = await client.put(`/salaries/${sal._id}`, { isPaid: true, amountPaid })
+      toast.success(`Paiement confirmé — ${formatCurrency(amountPaid)}`)
       setSalaries(prev => prev.map(s => s._id === sal._id ? response.data : s))
-
-      // Recalculate total
       const updatedSals = salaries.map(s => s._id === sal._id ? response.data : s)
       setTotalNet(updatedSals.reduce((acc, curr) => acc + curr.netToPay, 0))
+      setPayDialog(null)
+      setAmountPaidInput('')
     } catch (err) {
-      console.error('Error toggling pay status:', err)
-      toast.error('Erreur lors du changement de statut')
+      console.error('Error confirming payment:', err)
+      toast.error('Erreur lors du paiement')
+    } finally {
+      setConfirmingPay(false)
     }
   }
 
@@ -342,6 +374,7 @@ export default function Salaries() {
                     <th className="py-4 px-4 text-center">Repos</th>
                     <th className="py-4 px-4 text-center w-28 non-printable">Avances (DH)</th>
                     <th className="py-4 px-4 text-right">Net à Payer</th>
+                    <th className="py-4 px-4 text-right">Solde</th>
                     <th className="py-4 px-6 text-center w-24 non-printable">Actions</th>
                   </tr>
                 </thead>
@@ -355,6 +388,14 @@ export default function Salaries() {
 
                     const daysWorkedVal = rowEdits.daysWorked !== undefined ? rowEdits.daysWorked : s.daysWorked
                     const advancesVal   = rowEdits.advances   !== undefined ? rowEdits.advances   : s.advances
+
+                    // Solde réel = baseNet - avances (peut être négatif)
+                    const baseNet = emp.paymentType === 'Journalier'
+                      ? daysWorkedVal * (emp.dailyRate || 0)
+                      : daysWorkedVal >= 26
+                        ? emp.baseSalaryNet
+                        : (emp.baseSalaryNet / 26) * daysWorkedVal
+                    const balance = Math.round(baseNet) - Number(advancesVal)
 
                     return (
                       <tr key={s._id} className="hover:bg-slate-550/5 text-sm">
@@ -417,6 +458,18 @@ export default function Salaries() {
                           {formatCurrency(s.netToPay)}
                         </td>
 
+                        {/* Solde réel (baseNet - avances) */}
+                        <td className="py-4 px-4 text-right font-bold font-mono">
+                          <span className={balance > 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : balance < 0
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-slate-400'
+                          }>
+                            {balance > 0 ? '+' : ''}{formatCurrency(balance)}
+                          </span>
+                        </td>
+
                         <td className="py-3 px-6 text-center non-printable">
                           <div className="flex items-center justify-center">
                             {isEditing ? (
@@ -428,17 +481,31 @@ export default function Salaries() {
                                 <Check size={14} />
                               </button>
                             ) : (
-                              <button
-                                onClick={() => handleTogglePayStatus(s)}
-                                className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all border ${
-                                  s.isPaid
-                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-250/20 dark:border-emerald-800/40 hover:bg-red-50 hover:text-red-650 dark:hover:bg-red-950/20 dark:hover:text-red-400 hover:border-red-200'
-                                    : 'bg-slate-50 text-slate-550 dark:bg-slate-950 dark:text-slate-450 border-slate-200 dark:border-slate-800 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
-                                }`}
-                                title={s.isPaid ? "Cliquer pour marquer comme À payer" : "Cliquer pour marquer comme Payé"}
-                              >
-                                {s.isPaid ? 'Payé' : 'À payer'}
-                              </button>
+                              <div className="flex flex-col items-center gap-0.5">
+                                <button
+                                  onClick={() => handleTogglePayStatus(s)}
+                                  className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all border ${
+                                    s.isPaid
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/40 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400 hover:border-red-200'
+                                      : 'bg-slate-50 text-slate-550 dark:bg-slate-950 dark:text-slate-450 border-slate-200 dark:border-slate-800 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                                  }`}
+                                  title={s.isPaid ? 'Cliquer pour annuler le paiement' : 'Cliquer pour enregistrer le paiement'}
+                                >
+                                  {s.isPaid ? 'Payé' : 'À payer'}
+                                </button>
+                                {/* Montant réel payé + écart si différent du calculé */}
+                                {s.isPaid && s.amountPaid != null && (
+                                  <span className={`text-[9px] font-mono font-semibold ${
+                                    s.amountPaid === s.netToPay
+                                      ? 'text-slate-400'
+                                      : s.amountPaid > s.netToPay
+                                        ? 'text-amber-500 dark:text-amber-400'
+                                        : 'text-orange-500 dark:text-orange-400'
+                                  }`}>
+                                    {formatCurrency(s.amountPaid)}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -486,6 +553,112 @@ export default function Salaries() {
           }
         }
       `}</style>
+
+      {/* ── Dialogue Confirmation Paiement ── */}
+      {payDialog && (() => {
+        const sal    = payDialog.sal
+        const parsed = Number(amountPaidInput)
+        const ecart  = parsed > 0 ? parsed - sal.netToPay : null
+        const canConfirm = parsed > 0 && !confirmingPay
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+
+              {/* Header */}
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-lg">Confirmer le Paiement</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5 font-medium">
+                    {sal.employeeId?.fullName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setPayDialog(null); setAmountPaidInput('') }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors mt-0.5"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Net à Payer — lecture seule */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    Net à Payer (calculé)
+                  </label>
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-right select-none">
+                    {formatCurrency(sal.netToPay)}
+                  </div>
+                </div>
+
+                {/* Montant Réel Payé — éditable */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                    Montant Réel Payé <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    autoFocus
+                    value={amountPaidInput}
+                    onChange={e => setAmountPaidInput(e.target.value)}
+                    placeholder={`Ex : ${sal.netToPay}`}
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-emerald-500 rounded-xl py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  />
+                </div>
+
+                {/* Écart en temps réel */}
+                {ecart !== null && (
+                  <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
+                    ecart === 0
+                      ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40'
+                      : ecart > 0
+                        ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40'
+                        : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800/40'
+                  }`}>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Écart</span>
+                    <span className={`font-mono font-bold text-sm ${
+                      ecart === 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : ecart > 0
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-orange-600 dark:text-orange-400'
+                    }`}>
+                      {ecart > 0 ? '+' : ''}{formatCurrency(ecart)}
+                      <span className="text-[10px] font-normal ml-1.5 opacity-75">
+                        {ecart > 0 ? '(trop payé)' : ecart < 0 ? '(reste dû)' : '(exact ✓)'}
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => { setPayDialog(null); setAmountPaidInput('') }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm rounded-xl py-2.5 transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmPayment}
+                  disabled={!canConfirm}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl py-2.5 transition-all flex items-center justify-center gap-2"
+                >
+                  {confirmingPay
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : <Check size={16} />}
+                  Confirmer le Paiement
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

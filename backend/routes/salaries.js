@@ -139,9 +139,9 @@ router.put('/:id', protect, async (req, res) => {
     const existing = await SalaryPayment.findById(req.params.id).populate('employeeId');
     if (!existing) return res.status(404).json({ message: 'Fiche introuvable' });
 
-    const advances = req.body.advances ?? existing.advances;
+    const advances   = req.body.advances   ?? existing.advances;
     const daysWorked = req.body.daysWorked ?? existing.daysWorked;
-    const isPaid = req.body.isPaid ?? existing.isPaid;
+    const isPaid     = req.body.isPaid     ?? existing.isPaid;
     const emp = existing.employeeId;
 
     let baseNet = 0;
@@ -153,13 +153,21 @@ router.put('/:id', protect, async (req, res) => {
 
     const netToPay = Math.max(0, Math.round(baseNet) - advances);
 
-    existing.advances = advances;
+    existing.advances   = advances;
     existing.daysWorked = daysWorked;
-    existing.netToPay = netToPay;
-    existing.isPaid = isPaid;
-    existing.paidAt = isPaid ? new Date() : null;
-    await existing.save();
+    existing.netToPay   = netToPay;
+    existing.isPaid     = isPaid;
+    existing.paidAt     = isPaid ? (existing.paidAt || new Date()) : null;
 
+    // amountPaid : montant réellement décaissé (fourni par le gérant au moment du paiement)
+    if (req.body.amountPaid !== undefined) {
+      existing.amountPaid = isPaid ? req.body.amountPaid : null;
+    } else if (!isPaid) {
+      // Réinitialise si on dé-marque le paiement
+      existing.amountPaid = null;
+    }
+
+    await existing.save();
     res.json(existing);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -175,8 +183,12 @@ router.post('/generate-expense', protect, async (req, res) => {
 
     const salaries = await SalaryPayment.find({ month });
     
-    // Masse salariale décaissée réelle = Somme(avances) + Somme(netToPay des fiches payées)
-    const totalSalariesPaid = salaries.reduce((sum, s) => sum + s.advances + (s.isPaid ? s.netToPay : 0), 0);
+    // Masse salariale décaissée réelle :
+    // = Somme(avances) + Somme(amountPaid pour fiches payées, ou netToPay si amountPaid absent)
+    const totalSalariesPaid = salaries.reduce((sum, s) => {
+      const paid = s.isPaid ? (s.amountPaid ?? s.netToPay) : 0;
+      return sum + s.advances + paid;
+    }, 0);
 
     if (totalSalariesPaid === 0) {
       return res.status(400).json({ message: 'Aucun montant de salaire payé (avances ou net à payer) pour ce mois.' });

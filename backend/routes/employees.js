@@ -12,7 +12,7 @@ router.get('/', protect, async (req, res) => {
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     else filter.isActive = true;
 
-    const employees = await Employee.find(filter).sort({ pole: 1, employeeNumber: 1 });
+    const employees = await Employee.find(filter).sort({ employeeNumber: 1 });
     res.json(employees);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -33,7 +33,11 @@ router.get('/:id', protect, async (req, res) => {
 // POST /api/employees
 router.post('/', protect, async (req, res) => {
   try {
-    const employee = new Employee(req.body);
+    // Auto-incrément : cherche le matricule max (tous statuts confondus)
+    const last = await Employee.findOne({}).sort({ employeeNumber: -1 }).select('employeeNumber');
+    const nextNumber = last ? last.employeeNumber + 1 : 1;
+
+    const employee = new Employee({ ...req.body, employeeNumber: nextNumber });
     await employee.save();
     res.status(201).json(employee);
   } catch (err) {
@@ -44,7 +48,9 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/employees/:id
 router.put('/:id', protect, async (req, res) => {
   try {
-    const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    // Le matricule (employeeNumber) est immuable après création
+    const { employeeNumber, ...updateData } = req.body;
+    const employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
     if (!employee) return res.status(404).json({ message: 'Employé introuvable' });
     res.json(employee);
   } catch (err) {

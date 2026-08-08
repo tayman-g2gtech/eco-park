@@ -5,7 +5,8 @@ import {
   Edit2, 
   Trash2, 
   Loader2,
-  UserPlus
+  UserPlus,
+  Search
 } from 'lucide-react'
 import client from '@/api/client'
 import { formatCurrency } from '@/lib/utils'
@@ -40,6 +41,7 @@ export default function Personnel() {
   const [customPosition, setCustomPosition] = useState('')
   const [submittingStaff, setSubmittingStaff] = useState(false)
   const [editingStaffId, setEditingStaffId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Fetch Employees list
   const fetchStaff = async () => {
@@ -64,18 +66,20 @@ export default function Personnel() {
     e.preventDefault()
     const finalPosition = staffForm.position === 'Autre' ? customPosition.trim() : staffForm.position
 
-    if (!staffForm.fullName.trim() || !staffForm.employeeNumber || !staffForm.baseSalaryNet || !finalPosition) {
-      toast.error('Veuillez remplir le nom, le numéro, le poste et le salaire de base')
+    if (!staffForm.fullName.trim() || !staffForm.baseSalaryNet || !finalPosition) {
+      toast.error('Veuillez remplir le nom, le poste et le salaire de base')
       return
     }
 
     setSubmittingStaff(true)
+    // Le matricule est auto-généré par le backend — ne pas l'inclure dans le payload
     const payload = {
-      ...staffForm,
+      fullName: staffForm.fullName.trim(),
       position: finalPosition,
-      employeeNumber: Number(staffForm.employeeNumber),
+      pole: staffForm.pole,
+      paymentType: staffForm.paymentType,
       baseSalaryNet: Number(staffForm.baseSalaryNet),
-      dailyRate: staffForm.dailyRate ? Number(staffForm.dailyRate) : undefined
+      ...(staffForm.dailyRate ? { dailyRate: Number(staffForm.dailyRate) } : {})
     }
 
     try {
@@ -148,6 +152,18 @@ export default function Personnel() {
     setCustomPosition('')
   }
 
+  // Filtre de recherche local (nom, matricule, pôle, poste)
+  const filteredEmployees = employees.filter(emp => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return true
+    return (
+      emp.fullName.toLowerCase().includes(q) ||
+      String(emp.employeeNumber).includes(q) ||
+      (emp.pole || '').toLowerCase().includes(q) ||
+      (emp.position || '').toLowerCase().includes(q)
+    )
+  })
+
   return (
     <div className="space-y-8 p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
       {/* Header */}
@@ -175,15 +191,12 @@ export default function Personnel() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Matricule / N°</label>
-                <input
-                  type="number"
-                  placeholder="Ex: 34"
-                  value={staffForm.employeeNumber}
-                  onChange={(e) => setStaffForm({ ...staffForm, employeeNumber: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500 font-mono"
-                  required
-                  min="1"
-                />
+                <div className="w-full bg-slate-100 dark:bg-slate-950/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl py-2.5 px-3 text-sm font-mono select-none">
+                  {editingStaffId
+                    ? <span className="font-bold text-slate-700 dark:text-slate-200">{staffForm.employeeNumber}</span>
+                    : <span className="text-slate-400 italic">Auto</span>
+                  }
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -336,8 +349,23 @@ export default function Personnel() {
 
         {/* Staff List Table Card */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm lg:col-span-2">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200">Registre du personnel</h3>
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 shrink-0">
+              Registre du personnel
+              <span className="ml-2 text-xs font-normal text-slate-400">
+                ({filteredEmployees.length}{filteredEmployees.length !== employees.length ? ` / ${employees.length}` : ''})
+              </span>
+            </h3>
+            <div className="relative max-w-xs w-full">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Rechercher un employé..."
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 pl-8 pr-3 text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
           </div>
 
           {loadingStaff ? (
@@ -363,7 +391,13 @@ export default function Personnel() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {employees.map((emp) => (
+                  {filteredEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
+                        Aucun résultat pour « {searchQuery} »
+                      </td>
+                    </tr>
+                  ) : filteredEmployees.map((emp) => (
                     <tr key={emp._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-sm transition-colors">
                       <td className="py-4 px-6 font-mono font-bold text-slate-400">
                         {emp.employeeNumber}

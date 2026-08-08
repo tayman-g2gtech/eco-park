@@ -6,8 +6,9 @@ const SalaryPaymentSchema = new mongoose.Schema({
   month: { type: String, required: true }, // 'YYYY-MM'
   daysWorked: { type: Number, default: 26 },
   restDays: { type: Number, default: 0 },   // Repos & Récupérations
-  advances: { type: Number, default: 0 },   // Avance sur salaire
+  advances: { type: Number, default: 0 },    // Avance sur salaire
   netToPay: { type: Number, required: true }, // Net à payer (calculé)
+  amountPaid: { type: Number, default: null },// Montant réellement décaissé (peut différer de netToPay)
   isPaid: { type: Boolean, default: false },
   paidAt: { type: Date },
   notes: { type: String }
