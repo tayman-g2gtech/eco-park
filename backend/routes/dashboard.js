@@ -26,7 +26,7 @@ router.get('/kpis', protect, async (req, res) => {
               $sum: {
                 $add: [
                   '$advances',
-                  { $cond: [{ $eq: ['$isPaid', true] }, '$netToPay', 0] }
+                  { $cond: [{ $eq: ['$isPaid', true] }, { $ifNull: ['$amountPaid', '$netToPay'] }, 0] }
                 ]
               }
             }
@@ -102,7 +102,7 @@ router.get('/trend', protect, async (req, res) => {
                 $sum: {
                   $add: [
                     '$advances',
-                    { $cond: [{ $eq: ['$isPaid', true] }, '$netToPay', 0] }
+                    { $cond: [{ $eq: ['$isPaid', true] }, { $ifNull: ['$amountPaid', '$netToPay'] }, 0] }
                   ]
                 }
               }
@@ -145,7 +145,7 @@ router.get('/expenses-breakdown', protect, async (req, res) => {
               $sum: {
                 $add: [
                   '$advances',
-                  { $cond: [{ $eq: ['$isPaid', true] }, '$netToPay', 0] }
+                  { $cond: [{ $eq: ['$isPaid', true] }, { $ifNull: ['$amountPaid', '$netToPay'] }, 0] }
                 ]
               }
             }
